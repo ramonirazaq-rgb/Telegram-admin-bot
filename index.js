@@ -550,6 +550,7 @@ require("./commands/ban")(bot, pool, canModerate, isOwner);
 require("./commands/kick")(bot, pool, canModerate, isOwner);
 require("./commands/mute")(bot, pool, canModerate, isOwner);
 require("./commands/warn")(bot, pool, canModerate, isOwner);
+require("./commands/group")(bot, pool, canModerate, isOwner);
 
         await bot.launch();
 
