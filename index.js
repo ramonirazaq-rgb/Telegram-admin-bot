@@ -469,6 +469,53 @@ bot.action("panel_back", async (ctx) => {
 });
 
 // =========================
+// OPEN & CLOSE GROUP
+// =========================
+
+bot.command("close", async (ctx) => {
+    if (!(await canModerate(ctx))) {
+        return ctx.reply("⛔ You must be a group admin.");
+    }
+
+    try {
+        await ctx.telegram.setChatPermissions(ctx.chat.id, {
+            can_send_messages: false
+        });
+
+        await ctx.reply("🔒 Group closed. Only admins can send messages.");
+    } catch (err) {
+        console.error(err);
+        ctx.reply("❌ Failed to close the group.\n\nMake sure I'm an administrator with permission to manage the chat.");
+    }
+});
+
+bot.command("open", async (ctx) => {
+    if (!(await canModerate(ctx))) {
+        return ctx.reply("⛔ You must be a group admin.");
+    }
+
+    try {
+        await ctx.telegram.setChatPermissions(ctx.chat.id, {
+            can_send_messages: true,
+            can_send_audios: true,
+            can_send_documents: true,
+            can_send_photos: true,
+            can_send_videos: true,
+            can_send_video_notes: true,
+            can_send_voice_notes: true,
+            can_send_polls: true,
+            can_send_other_messages: true,
+            can_add_web_page_previews: true
+        });
+
+        await ctx.reply("🔓 Group opened. Everyone can send messages again.");
+    } catch (err) {
+        console.error(err);
+        ctx.reply("❌ Failed to open the group.");
+    }
+});
+
+// =========================
 // ERRORS
 // =========================
 
