@@ -49,15 +49,18 @@ module.exports = (bot, pool, canModerate, isOwner) => {
             );
 
             await ctx.reply(
-`🔒 *Group Closed*
+`🔒 *GROUP CLOSED*
 
+👥 Group: ${ctx.chat.title}
 👮 Closed by: ${ctx.from.first_name}
+🆔 Admin ID: ${ctx.from.id}
+🕒 Time: ${new Date().toUTCString()}
 
-Only administrators can send messages until the group is reopened.`,
-                {
-                    parse_mode: "Markdown"
-                }
-            );
+🚫 Members can no longer send messages.
+Only administrators may chat until the group is reopened.`,
+{
+    parse_mode: "Markdown"
+});
 
         } catch (err) {
 
@@ -118,15 +121,17 @@ Only administrators can send messages until the group is reopened.`,
             );
 
             await ctx.reply(
-`🔓 *Group Opened*
+`🔓 *GROUP REOPENED*
 
+👥 Group: ${ctx.chat.title}
 👮 Opened by: ${ctx.from.first_name}
+🆔 Admin ID: ${ctx.from.id}
+🕒 Time: ${new Date().toUTCString()}
 
-Members can now send messages again.`,
-                {
-                    parse_mode: "Markdown"
-                }
-            );
+✅ Members can now send messages again.`,
+{
+    parse_mode: "Markdown"
+});
 
         } catch (err) {
 
