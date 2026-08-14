@@ -142,11 +142,6 @@ async function isTelegramAdmin(ctx) {
     }
 }
 
-async function canModerate(ctx) {
-    if (isOwner(ctx)) return true;
-
-    return await isTelegramAdmin(ctx);
-}
 // =========================
 // START
 // =========================
