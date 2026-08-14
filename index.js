@@ -1,6 +1,9 @@
 require("dotenv").config();
 
-const { canModerate } = require("./utils/permissions");
+const {
+    canModerate,
+    canAccessPanel
+} = require("./utils/permissions");
 const { Telegraf } = require("telegraf");
 const { Pool } = require("pg");
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -222,7 +225,8 @@ if (ctx.chat.type === "private") {
 // =========================
 
 bot.action("panel_moderation", async (ctx) => {
-    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canAccessPanel(ctx)))
+    return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -258,7 +262,8 @@ bot.action("panel_moderation", async (ctx) => {
 // =========================
 
 bot.action("panel_locks", async (ctx) => {
-    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canAccessPanel(ctx)))
+    return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -302,7 +307,8 @@ bot.action("panel_locks", async (ctx) => {
 // =========================
 
 bot.action("panel_members", async (ctx) => {
-    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canAccessPanel(ctx)))
+    return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -325,7 +331,8 @@ bot.action("panel_members", async (ctx) => {
 // =========================
 
 bot.action("panel_stats", async (ctx) => {
-    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canAccessPanel(ctx)))
+    return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -368,7 +375,8 @@ bot.action("panel_stats", async (ctx) => {
 // =========================
 
 bot.action("panel_logs", async (ctx) => {
-    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canAccessPanel(ctx)))
+    return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -391,7 +399,8 @@ bot.action("panel_logs", async (ctx) => {
 // =========================
 
 bot.action("panel_settings", async (ctx) => {
-    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canAccessPanel(ctx)))
+    return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -414,7 +423,8 @@ bot.action("panel_settings", async (ctx) => {
 // =========================
 
 bot.action("panel_broadcast", async (ctx) => {
-    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canAccessPanel(ctx)))
+    return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -428,7 +438,8 @@ bot.action("panel_broadcast", async (ctx) => {
 // =========================
 
 bot.action("panel_close", async (ctx) => {
-    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canAccessPanel(ctx)))
+    return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
     await ctx.deleteMessage();
@@ -439,7 +450,8 @@ bot.action("panel_close", async (ctx) => {
 // =========================
 
 bot.action("panel_back", async (ctx) => {
-    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canAccessPanel(ctx)))
+    return ctx.answerCbQuery("⛔ Unauthorized."); 
 
     await ctx.answerCbQuery();
 

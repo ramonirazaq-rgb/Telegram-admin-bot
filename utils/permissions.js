@@ -10,3 +10,19 @@ async function canModerate(ctx) {
 }
 
 module.exports = { canModerate };
+async function canAccessPanel(ctx) {
+
+    // Private chat → only owner
+    if (ctx.chat.type === "private") {
+        return ctx.from.id === Number(process.env.OWNER_ID);
+    }
+
+    // Group → admins
+    return await canModerate(ctx);
+
+}
+
+module.exports = {
+    canModerate,
+    canAccessPanel
+};
