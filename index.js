@@ -177,9 +177,17 @@ bot.command("owner", (ctx) => {
 // =========================
 
 bot.command("panel", async (ctx) => {
+    // Private chat: only the owner can access the panel
+if (ctx.chat.type === "private") {
+    if (ctx.from.id !== Number(process.env.OWNER_ID)) {
+        return ctx.reply("⛔ Only the bot owner can use this panel.");
+    }
+} else {
+    // Groups: only admins can access the panel
     if (!(await canModerate(ctx))) {
         return ctx.reply("⛔ Admin access required.");
     }
+}
 
     await ctx.reply(
         "👑 *ADMIN CONTROL PANEL*\n\nChoose an option below:",
