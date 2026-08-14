@@ -1,5 +1,6 @@
 require("dotenv").config();
 
+const { canModerate } = require("./utils/permissions");
 const { Telegraf } = require("telegraf");
 const { Pool } = require("pg");
 const loadModeration = require("./commands/moderation");
