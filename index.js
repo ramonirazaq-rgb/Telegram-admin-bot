@@ -3,7 +3,6 @@ require("dotenv").config();
 const { canModerate } = require("./utils/permissions");
 const { Telegraf } = require("telegraf");
 const { Pool } = require("pg");
-const loadModeration = require("./commands/moderation");
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const OWNER_ID = Number(process.env.OWNER_ID);
@@ -527,8 +526,10 @@ async function startBot() {
     try {
         await initDatabase();
 
-        // Load all moderation commands
-        loadModeration(bot, pool, canModerate, isOwner);
+require("./commands/ban")(bot, pool, canModerate, isOwner);
+require("./commands/kick")(bot, pool, canModerate, isOwner);
+require("./commands/mute")(bot, pool, canModerate, isOwner);
+require("./commands/warn")(bot, pool, canModerate, isOwner);
 
         await bot.launch();
 
