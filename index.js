@@ -127,7 +127,25 @@ async function initDatabase() {
 function isOwner(ctx) {
     return ctx.from && ctx.from.id === OWNER_ID;
 }
+async function isTelegramAdmin(ctx) {
+    try {
+        const member = await ctx.telegram.getChatMember(
+            ctx.chat.id,
+            ctx.from.id
+        );
 
+        return ["creator", "administrator"].includes(member.status);
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+}
+
+async function canModerate(ctx) {
+    if (isOwner(ctx)) return true;
+
+    return await isTelegramAdmin(ctx);
+}
 // =========================
 // START
 // =========================
@@ -164,7 +182,7 @@ bot.command("owner", (ctx) => {
 // =========================
 
 bot.command("panel", async (ctx) => {
-    if (!isOwner(ctx)) {
+    if (!(await canModerate(ctx))) {
         return ctx.reply("⛔ Admin access required.");
     }
 
@@ -201,7 +219,7 @@ bot.command("panel", async (ctx) => {
 // =========================
 
 bot.action("panel_moderation", async (ctx) => {
-    if (!isOwner(ctx)) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -237,7 +255,7 @@ bot.action("panel_moderation", async (ctx) => {
 // =========================
 
 bot.action("panel_locks", async (ctx) => {
-    if (!isOwner(ctx)) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -281,7 +299,7 @@ bot.action("panel_locks", async (ctx) => {
 // =========================
 
 bot.action("panel_members", async (ctx) => {
-    if (!isOwner(ctx)) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -304,7 +322,7 @@ bot.action("panel_members", async (ctx) => {
 // =========================
 
 bot.action("panel_stats", async (ctx) => {
-    if (!isOwner(ctx)) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -347,7 +365,7 @@ bot.action("panel_stats", async (ctx) => {
 // =========================
 
 bot.action("panel_logs", async (ctx) => {
-    if (!isOwner(ctx)) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -370,7 +388,7 @@ bot.action("panel_logs", async (ctx) => {
 // =========================
 
 bot.action("panel_settings", async (ctx) => {
-    if (!isOwner(ctx)) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -393,7 +411,7 @@ bot.action("panel_settings", async (ctx) => {
 // =========================
 
 bot.action("panel_broadcast", async (ctx) => {
-    if (!isOwner(ctx)) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
@@ -407,7 +425,7 @@ bot.action("panel_broadcast", async (ctx) => {
 // =========================
 
 bot.action("panel_close", async (ctx) => {
-    if (!isOwner(ctx)) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
     await ctx.deleteMessage();
@@ -418,7 +436,7 @@ bot.action("panel_close", async (ctx) => {
 // =========================
 
 bot.action("panel_back", async (ctx) => {
-    if (!isOwner(ctx)) return ctx.answerCbQuery("⛔ Unauthorized.");
+    if (!(await canModerate(ctx))) return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
