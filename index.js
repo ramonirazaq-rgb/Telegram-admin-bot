@@ -51,8 +51,6 @@ async function initDatabase() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
-DROP TABLE IF EXISTS filters;
-
 CREATE TABLE IF NOT EXISTS filters (
     id SERIAL PRIMARY KEY,
     chat_id BIGINT NOT NULL,
