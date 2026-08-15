@@ -157,3 +157,7 @@ ${words}`,
     return ctx.reply("❌ " + err.message);
 
 }
+
+});
+
+};
