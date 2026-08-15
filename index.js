@@ -264,6 +264,84 @@ bot.action("panel_moderation", async (ctx) => {
 bot.action("panel_locks", async (ctx) => {
     if (!(await canAccessPanel(ctx)))
     return ctx.answerCbQuery("⛔ Unauthorized.");
+bot.action("lock_close", async (ctx) => {
+
+    if (!(await canAccessPanel(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    await ctx.telegram.setChatPermissions(
+        ctx.chat.id,
+        {
+            can_send_messages: false,
+            can_send_audios: false,
+            can_send_documents: false,
+            can_send_photos: false,
+            can_send_videos: false,
+            can_send_video_notes: false,
+            can_send_voice_notes: false,
+            can_send_polls: false,
+            can_send_other_messages: false,
+            can_add_web_page_previews: false
+        }
+    );
+
+    await ctx.editMessageText(
+`🔒 *GROUP CLOSED*
+
+👥 Group: ${ctx.chat.title}
+👮 Closed by: ${ctx.from.first_name}
+🆔 Admin ID: ${ctx.from.id}
+🕒 Time: ${new Date().toUTCString()}
+
+🚫 Members can no longer send messages.
+Only administrators may chat until the group is reopened.`,
+        {
+            parse_mode: "Markdown"
+        }
+    );
+
+});
+
+bot.action("lock_open", async (ctx) => {
+
+    if (!(await canAccessPanel(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    await ctx.telegram.setChatPermissions(
+        ctx.chat.id,
+        {
+            can_send_messages: true,
+            can_send_audios: true,
+            can_send_documents: true,
+            can_send_photos: true,
+            can_send_videos: true,
+            can_send_video_notes: true,
+            can_send_voice_notes: true,
+            can_send_polls: true,
+            can_send_other_messages: true,
+            can_add_web_page_previews: true
+        }
+    );
+
+    await ctx.editMessageText(
+`🔓 *GROUP REOPENED*
+
+👥 Group: ${ctx.chat.title}
+👮 Opened by: ${ctx.from.first_name}
+🆔 Admin ID: ${ctx.from.id}
+🕒 Time: ${new Date().toUTCString()}
+
+✅ Members can now send messages again.`,
+        {
+            parse_mode: "Markdown"
+        }
+    );
+
+});
 
     await ctx.answerCbQuery();
 
