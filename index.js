@@ -796,6 +796,7 @@ require("./commands/antispam")(bot, pool, canModerate, isOwner);
 require("./commands/welcome")(bot, pool, canModerate, isOwner);
 require("./commands/cleanservice")(bot, pool, canModerate, isOwner);
 require("./commands/filter")(bot, pool, canModerate, isOwner);
+require("./commands/userinfo")(bot, pool, canModerate);
 
 bot.on("message", async (ctx, next) => {
 
