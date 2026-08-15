@@ -970,6 +970,54 @@ bot.on("message", async (ctx, next) => {
         return;
     }
 
+if (
+    locks.photos_locked &&
+    ctx.message.photo
+) {
+    await ctx.deleteMessage().catch(() => {});
+    return;
+}
+
+if (
+    locks.videos_locked &&
+    ctx.message.video
+) {
+    await ctx.deleteMessage().catch(() => {});
+    return;
+}
+
+if (
+    locks.documents_locked &&
+    ctx.message.document
+) {
+    await ctx.deleteMessage().catch(() => {});
+    return;
+}
+
+if (
+    locks.stickers_locked &&
+    ctx.message.sticker
+) {
+    await ctx.deleteMessage().catch(() => {});
+    return;
+}
+
+if (
+    locks.gifs_locked &&
+    ctx.message.animation
+) {
+    await ctx.deleteMessage().catch(() => {});
+    return;
+}
+
+if (
+    locks.polls_locked &&
+    ctx.message.poll
+) {
+    await ctx.deleteMessage().catch(() => {});
+    return;
+}
+
     return next();
 
 });
