@@ -78,6 +78,9 @@ async function initDatabase() {
 ALTER TABLE group_settings
 ADD COLUMN IF NOT EXISTS anti_spam BOOLEAN DEFAULT FALSE;
 
+ALTER TABLE group_settings
+ADD COLUMN IF NOT EXISTS welcome BOOLEAN DEFAULT FALSE;
+
             CREATE TABLE IF NOT EXISTS settings (
                 chat_id BIGINT PRIMARY KEY,
                 welcome_enabled BOOLEAN DEFAULT true,
@@ -595,6 +598,7 @@ require("./commands/warn")(bot, pool, canModerate, isOwner);
 require("./commands/group")(bot, pool, canModerate, isOwner);
 require("./commands/antilink")(bot, pool, canModerate, isOwner);
 require("./commands/antispam")(bot, pool, canModerate, isOwner);
+require("./commands/welcome")(bot, pool, canModerate, isOwner);
 
 bot.on("message", async (ctx, next) => {
 
@@ -791,6 +795,89 @@ bot.on("message", async (ctx, next) => {
     }
 
     return next();
+
+});
+
+bot.on("new_chat_members", async (ctx) => {
+
+    try {
+
+        const settings = await pool.query(
+            `SELECT welcome
+             FROM group_settings
+             WHERE chat_id=$1`,
+            [ctx.chat.id]
+        );
+
+        if (
+            settings.rowCount === 0 ||
+            !settings.rows[0].welcome
+        ) {
+            return;
+        }
+
+        for (const member of ctx.message.new_chat_members) {
+
+            const count = await ctx.getChatMembersCount();
+            await ctx.replyWithMarkdown(
+`👋 *WELCOME!*
+
+🎉 Welcome, [${member.first_name}](tg://user?id=${member.id})!
+
+👥 Group: *${ctx.chat.title}*
+📊 Members: *${count}*
+🕒 Joined: *${new Date().toUTCString()}*
+
+📖 Please read the group rules and enjoy your stay!`
+            );
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+});
+
+bot.on("left_chat_member", async (ctx) => {
+
+    try {
+
+        const settings = await pool.query(
+            `SELECT welcome
+             FROM group_settings
+             WHERE chat_id=$1`,
+            [ctx.chat.id]
+        );
+
+        if (
+            settings.rowCount === 0 ||
+            !settings.rows[0].welcome
+        ) {
+            return;
+        }
+
+        const member = ctx.message.left_chat_member;
+
+        const count = await ctx.getChatMembersCount();
+        await ctx.replyWithMarkdown(
+`👋 *MEMBER LEFT*
+
+👤 User: ${member.first_name}
+👥 Group: *${ctx.chat.title}*
+📊 Members: *${count}*
+🕒 Time: *${new Date().toUTCString()}*
+
+👋 We hope to see you again!`
+        );
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
 
 });
 
