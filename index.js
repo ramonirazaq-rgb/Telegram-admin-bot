@@ -6,6 +6,7 @@ const {
     canModerate,
     canAccessPanel
 } = require("./utils/permissions");
+const logAction = require("./utils/logger");
 const { Telegraf } = require("telegraf");
 const { Pool } = require("pg");
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -539,43 +540,96 @@ bot.action("panel_members", async (ctx) => {
 // =========================
 
 bot.action("panel_stats", async (ctx) => {
+
     if (!(await canAccessPanel(ctx)))
-    return ctx.answerCbQuery("⛔ Unauthorized.");
+        return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
-    try {
-        const result = await pool.query(`
-            SELECT
-                (SELECT COUNT(*) FROM users) AS users,
-                (SELECT COUNT(*) FROM warnings) AS warnings,
-                (SELECT COUNT(*) FROM bans) AS bans,
-                (SELECT COUNT(*) FROM mutes) AS mutes,
-                (SELECT COUNT(*) FROM logs) AS logs
-        `);
+    const warnings = await pool.query(
+        `SELECT COUNT(*) AS total
+         FROM warnings
+         WHERE chat_id=$1`,
+        [ctx.chat.id]
+    );
 
-        const stats = result.rows[0];
+    const mutes = await pool.query(
+        `SELECT COUNT(*) AS total
+         FROM mutes
+         WHERE chat_id=$1`,
+        [ctx.chat.id]
+    );
 
-        await ctx.editMessageText(
-            "📊 *BOT STATISTICS*\n\n" +
-            `👥 Users: ${stats.users}\n` +
-            `⚠️ Warnings: ${stats.warnings}\n` +
-            `🔨 Bans: ${stats.bans}\n` +
-            `🔇 Mutes: ${stats.mutes}\n` +
-            `📝 Logs: ${stats.logs}`,
-            {
-                parse_mode: "Markdown",
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: "⬅️ Back", callback_data: "panel_back" }]
+    const bans = await pool.query(
+        `SELECT COUNT(*) AS total
+         FROM bans
+         WHERE chat_id=$1`,
+        [ctx.chat.id]
+    );
+
+    const logs = await pool.query(
+        `SELECT COUNT(*) AS total
+         FROM logs
+         WHERE chat_id=$1`,
+        [ctx.chat.id]
+    );
+
+const links = await pool.query(
+    `SELECT COUNT(*) AS total
+     FROM logs
+     WHERE chat_id=$1
+     AND action='LINK_BLOCKED'`,
+    [ctx.chat.id]
+);
+
+const badWords = await pool.query(
+    `SELECT COUNT(*) AS total
+     FROM logs
+     WHERE chat_id=$1
+     AND action='BAD_WORD_BLOCKED'`,
+    [ctx.chat.id]
+);
+
+const spam = await pool.query(
+    `SELECT COUNT(*) AS total
+     FROM logs
+     WHERE chat_id=$1
+     AND action='SPAM_BLOCKED'`,
+    [ctx.chat.id]
+);
+
+    await ctx.editMessageText(
+`📊 *GROUP STATISTICS*
+
+⚠️ Total Warnings: ${warnings.rows[0].total}
+🔇 Total Mutes: ${mutes.rows[0].total}
+🚫 Total Bans: ${bans.rows[0].total}
+📜 Moderation Logs: ${logs.rows[0].total}
+🔗 Links Blocked: ${links.rows[0].total}
+🤬 Bad Words Blocked: ${badWords.rows[0].total}
+🚨 Spam Blocked: ${spam.rows[0].total}
+🕒 Updated: ${new Date().toUTCString()}`,
+        {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "🔄 Refresh",
+                            callback_data: "panel_stats"
+                        }
+                    ],
+                    [
+                        {
+                            text: "⬅️ Back to Settings",
+                            callback_data: "panel_settings"
+                        }
                     ]
-                }
+                ]
             }
-        );
-    } catch (error) {
-        console.error(error);
-        ctx.reply("❌ Could not retrieve statistics.");
-    }
+        }
+    );
+
 });
 
 // =========================
@@ -800,6 +854,14 @@ const result = await issueWarning(
     0
 );
 
+await logAction(
+    ctx.chat.id,
+    ctx.from.id,
+    null,
+    "LINK_BLOCKED",
+    "Blocked Telegram/URL link"
+);
+
         if (result.autoMuted) {
 
     return ctx.reply(
@@ -899,6 +961,15 @@ bot.on("message", async (ctx, next) => {
                 "Spam / Flood detected",
                 0
             );
+
+await logAction(
+    pool,
+    ctx.chat.id,
+    ctx.from.id,
+    null,
+    "SPAM_BLOCKED",
+    "Sent too many messages in a short time"
+);
 
             spamTracker.delete(key);
 
@@ -1143,6 +1214,15 @@ bot.on("message", async (ctx, next) => {
                 `Used blocked word: "${row.word}"`,
                 0
             );
+
+await logAction(
+    pool,
+    ctx.chat.id,
+    ctx.from.id,
+    null,
+    "BAD_WORD_BLOCKED",
+    row.word
+);
 
             if (warning.autoMuted) {
 

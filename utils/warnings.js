@@ -75,17 +75,13 @@ module.exports = async function issueWarning(
             ]
         );
 
-        await pool.query(
-            `INSERT INTO logs
-            (chat_id, user_id, admin_id, action)
-            VALUES ($1, $2, $3, $4)`,
-            [
-                ctx.chat.id,
-                target.id,
-                issuedBy,
-                "AUTO_MUTE"
-            ]
-        );
+        await logAction(
+    ctx.chat.id,
+    target.id,
+    ctx.from.id,
+    "AUTO_MUTE",
+    "Reached warning limit"
+);
 
         await pool.query(
             `DELETE FROM warnings
