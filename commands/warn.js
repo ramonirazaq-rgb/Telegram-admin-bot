@@ -72,6 +72,86 @@ module.exports = (bot, pool, canModerate, isOwner) => {
             );
 
             const totalWarnings = Number(result.rows[0].total);
+            // Automatically mute after 3 warnings
+            if (totalWarnings >= 3) {
+
+                const muteUntil = new Date(
+                    Date.now() + (60 * 60 * 1000) // 1 hour
+                );
+
+                await ctx.telegram.restrictChatMember(
+                    ctx.chat.id,
+                    target.id,
+                    {
+                        permissions: {
+                            can_send_messages: false,
+                            can_send_audios: false,
+                            can_send_documents: false,
+                            can_send_photos: false,
+                            can_send_videos: false,
+                            can_send_video_notes: false,
+                            can_send_voice_notes: false,
+                            can_send_polls: false,
+                            can_send_other_messages: false,
+                            can_add_web_page_previews: false
+                        },
+                        until_date: Math.floor(muteUntil.getTime() / 1000)
+                    }
+                );
+
+                await pool.query(
+                    `INSERT INTO mutes
+                    (user_id, chat_id, reason, muted_by, expires_at)
+                    VALUES ($1, $2, $3, $4, $5)`,
+                    [
+                        target.id,
+                        ctx.chat.id,
+                        "Reached warning limit",
+                        ctx.from.id,
+                        muteUntil
+                    ]
+                );
+                // Log the automatic mute
+                await pool.query(
+                    `INSERT INTO logs
+                    (chat_id, user_id, admin_id, action)
+                    VALUES ($1, $2, $3, $4)`,
+                    [
+                        ctx.chat.id,
+                        target.id,
+                        ctx.from.id,
+                        "AUTO_MUTE"
+                    ]
+                );
+
+                // Clear warnings after punishment
+                await pool.query(
+                    `DELETE FROM warnings
+                     WHERE user_id=$1
+                     AND chat_id=$2`,
+                    [
+                        target.id,
+                        ctx.chat.id
+                    ]
+                );
+
+                return ctx.reply(
+`🔇 *USER AUTOMATICALLY MUTED*
+
+👤 User: ${target.first_name}
+🆔 User ID: ${target.id}
+⚠️ Warning Limit: 3/3
+⏱ Duration: 1 Hour
+🤖 Action: Automatic Mute
+🕒 Time: ${new Date().toUTCString()}
+
+The user's warnings have been reset.`,
+                    {
+                        parse_mode: "Markdown"
+                    }
+                );
+
+            }
             await ctx.reply(
 `⚠️ *USER WARNED*
 
