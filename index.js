@@ -290,8 +290,8 @@ bot.action("panel_locks", async (ctx) => {
                         { text: "📊 Polls", callback_data: "lock_polls" }
                     ],
                     [
-                        { text: "🔓 Open Group", callback_data: "group_open" },
-                        { text: "🔒 Close Group", callback_data: "group_close" }
+                        { text: "🔓 Open Group", callback_data: "lock_open" },
+                        { text: "🔒 Close Group", callback_data: "lock_close" }
                     ],
                     [
                         { text: "⬅️ Back", callback_data: "panel_back" }
