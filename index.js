@@ -199,6 +199,77 @@ async function toggleSetting(chatId, column) {
 
 }
 
+const settingMap = {
+    toggle_antilink: "anti_link",
+    toggle_antispam: "anti_spam",
+    toggle_welcome: "welcome",
+    toggle_badwords: "bad_words",
+    toggle_cleanservice: "clean_service"
+};
+
+async function buildSettingsKeyboard(chatId) {
+
+    const result = await pool.query(
+        `SELECT
+            anti_link,
+            anti_spam,
+            welcome,
+            bad_words,
+            clean_service
+         FROM group_settings
+         WHERE chat_id=$1`,
+        [chatId]
+    );
+
+    const settings = result.rowCount
+        ? result.rows[0]
+        : {
+            anti_link: false,
+            anti_spam: false,
+            welcome: false,
+            bad_words: false,
+            clean_service: false
+        };
+
+    return {
+        inline_keyboard: [
+            [
+                {
+                    text: `${settings.anti_link ? "🟢" : "🔴"} Anti-Link`,
+                    callback_data: "toggle_antilink"
+                },
+                {
+                    text: `${settings.anti_spam ? "🟢" : "🔴"} Anti-Spam`,
+                    callback_data: "toggle_antispam"
+                }
+            ],
+            [
+                {
+                    text: `${settings.welcome ? "🟢" : "🔴"} Welcome`,
+                    callback_data: "toggle_welcome"
+                },
+                {
+                    text: `${settings.bad_words ? "🟢" : "🔴"} Bad Words`,
+                    callback_data: "toggle_badwords"
+                }
+            ],
+            [
+                {
+                    text: `${settings.clean_service ? "🟢" : "🔴"} Clean Service`,
+                    callback_data: "toggle_cleanservice"
+                }
+            ],
+            [
+                {
+                    text: "⬅️ Back",
+                    callback_data: "panel_back"
+                }
+            ]
+        ]
+    };
+
+}
+
 async function startBot() {
 }
 
@@ -543,86 +614,40 @@ bot.action("panel_settings", async (ctx) => {
     await ctx.answerCbQuery();
 
     await ctx.editMessageText(
-        "⚙️ *GROUP SETTINGS*\n\nTap a button to enable or disable a feature.",
-        {
-            parse_mode: "Markdown",
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: "🌐 Anti-Link", callback_data: "toggle_antilink" },
-                        { text: "🚨 Anti-Spam", callback_data: "toggle_antispam" }
-                    ],
-                    [
-                        { text: "👋 Welcome", callback_data: "toggle_welcome" },
-                        { text: "🤬 Bad Words", callback_data: "toggle_badwords" }
-                    ],
-                    [
-                        { text: "🧹 Clean Service", callback_data: "toggle_cleanservice" }
-                    ],
-                    [
-                        { text: "⬅️ Back", callback_data: "panel_back" }
-                    ]
-                ]
-            }
-        }
-    );
+    "⚙️ *GROUP SETTINGS*\n\nTap a button to enable or disable a feature.",
+    {
+        parse_mode: "Markdown",
+        reply_markup: await buildSettingsKeyboard(ctx.chat.id)
+    }
+);
 
 });
 
-bot.action("toggle_antilink", async (ctx) => {
+bot.action(/^toggle_/, async (ctx) => {
 
     if (!(await canAccessPanel(ctx)))
         return ctx.answerCbQuery("⛔ Unauthorized.");
 
-    const enabled = await toggleSetting(
+    const action = ctx.callbackQuery.data;
+    const column = settingMap[action];
+
+    if (!column)
+        return ctx.answerCbQuery("❌ Unknown setting.");
+
+    await toggleSetting(
         ctx.chat.id,
-        "anti_link"
+        column
     );
 
-    await ctx.answerCbQuery(
-        enabled
-            ? "🟢 Anti-Link Enabled"
-            : "🔴 Anti-Link Disabled"
-    );
+    await ctx.answerCbQuery();
 
-    return ctx.editMessageReplyMarkup({
-        inline_keyboard: [
-            [
-                {
-                    text: enabled
-                        ? "🟢 Anti-Link"
-                        : "🔴 Anti-Link",
-                    callback_data: "toggle_antilink"
-                },
-                {
-                    text: "🚨 Anti-Spam",
-                    callback_data: "toggle_antispam"
-                }
-            ],
-            [
-                {
-                    text: "👋 Welcome",
-                    callback_data: "toggle_welcome"
-                },
-                {
-                    text: "🤬 Bad Words",
-                    callback_data: "toggle_badwords"
-                }
-            ],
-            [
-                {
-                    text: "🧹 Clean Service",
-                    callback_data: "toggle_cleanservice"
-                }
-            ],
-            [
-                {
-                    text: "⬅️ Back",
-                    callback_data: "panel_back"
-                }
-            ]
-        ]
-    });
+    await ctx.editMessageText(
+        "⚙️ *GROUP SETTINGS*\n\nTap a button to enable or disable a feature.",
+        {
+            parse_mode: "Markdown",
+            reply_markup: await buildSettingsKeyboard(ctx.chat.id)
+        }
+    );
 
 });
 
