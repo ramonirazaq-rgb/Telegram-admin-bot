@@ -264,6 +264,44 @@ bot.action("panel_moderation", async (ctx) => {
 bot.action("panel_locks", async (ctx) => {
     if (!(await canAccessPanel(ctx)))
     return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    await ctx.editMessageText(
+        "🔒 *GROUP LOCKS*\n\nChoose a restriction:",
+        {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: "💬 Text", callback_data: "lock_text" },
+                        { text: "🔗 Links", callback_data: "lock_links" }
+                    ],
+                    [
+                        { text: "📷 Photos", callback_data: "lock_photos" },
+                        { text: "🎥 Videos", callback_data: "lock_videos" }
+                    ],
+                    [
+                        { text: "📄 Documents", callback_data: "lock_documents" },
+                        { text: "🎭 Stickers", callback_data: "lock_stickers" }
+                    ],
+                    [
+                        { text: "🎞 GIFs", callback_data: "lock_gifs" },
+                        { text: "📊 Polls", callback_data: "lock_polls" }
+                    ],
+                    [
+                        { text: "🔓 Open Group", callback_data: "group_open" },
+                        { text: "🔒 Close Group", callback_data: "group_close" }
+                    ],
+                    [
+                        { text: "⬅️ Back", callback_data: "panel_back" }
+                    ]
+                ]
+            }
+        }
+    );
+});
+
 bot.action("lock_close", async (ctx) => {
 
     if (!(await canAccessPanel(ctx)))
@@ -341,43 +379,6 @@ bot.action("lock_open", async (ctx) => {
         }
     );
 
-});
-
-    await ctx.answerCbQuery();
-
-    await ctx.editMessageText(
-        "🔒 *GROUP LOCKS*\n\nChoose a restriction:",
-        {
-            parse_mode: "Markdown",
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: "💬 Text", callback_data: "lock_text" },
-                        { text: "🔗 Links", callback_data: "lock_links" }
-                    ],
-                    [
-                        { text: "📷 Photos", callback_data: "lock_photos" },
-                        { text: "🎥 Videos", callback_data: "lock_videos" }
-                    ],
-                    [
-                        { text: "📄 Documents", callback_data: "lock_documents" },
-                        { text: "🎭 Stickers", callback_data: "lock_stickers" }
-                    ],
-                    [
-                        { text: "🎞 GIFs", callback_data: "lock_gifs" },
-                        { text: "📊 Polls", callback_data: "lock_polls" }
-                    ],
-                    [
-                        { text: "🔓 Open Group", callback_data: "group_open" },
-                        { text: "🔒 Close Group", callback_data: "group_close" }
-                    ],
-                    [
-                        { text: "⬅️ Back", callback_data: "panel_back" }
-                    ]
-                ]
-            }
-        }
-    );
 });
 
 // =========================
