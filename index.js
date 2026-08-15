@@ -51,6 +51,13 @@ async function initDatabase() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+CREATE TABLE IF NOT EXISTS filters (
+    id SERIAL PRIMARY KEY,
+    chat_id BIGINT NOT NULL,
+    word TEXT NOT NULL,
+    UNIQUE(chat_id, word)
+);
+
             CREATE TABLE IF NOT EXISTS bans (
                 id SERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL,
@@ -83,6 +90,9 @@ ADD COLUMN IF NOT EXISTS welcome BOOLEAN DEFAULT FALSE;
 
 ALTER TABLE group_settings
 ADD COLUMN IF NOT EXISTS clean_service BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE group_settings
+ADD COLUMN IF NOT EXISTS bad_words BOOLEAN DEFAULT FALSE;
 
             CREATE TABLE IF NOT EXISTS settings (
                 chat_id BIGINT PRIMARY KEY,
@@ -603,6 +613,7 @@ require("./commands/antilink")(bot, pool, canModerate, isOwner);
 require("./commands/antispam")(bot, pool, canModerate, isOwner);
 require("./commands/welcome")(bot, pool, canModerate, isOwner);
 require("./commands/cleanservice")(bot, pool, canModerate, isOwner);
+require("./commands/filter")(bot, pool, canModerate, isOwner);
 
 bot.on("message", async (ctx, next) => {
 
@@ -920,6 +931,118 @@ bot.on("message", async (ctx, next) => {
         ) {
 
             await ctx.deleteMessage().catch(() => {});
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+    return next();
+
+});
+
+bot.on("message", async (ctx, next) => {
+
+    try {
+
+        if (ctx.chat.type === "private")
+            return next();
+
+        if (!ctx.message.text)
+            return next();
+
+        const settings = await pool.query(
+            `SELECT bad_words
+             FROM group_settings
+             WHERE chat_id=$1`,
+            [ctx.chat.id]
+        );
+
+        if (
+            settings.rowCount === 0 ||
+            !settings.rows[0].bad_words
+        ) {
+            return next();
+        }
+
+        const member = await ctx.telegram.getChatMember(
+            ctx.chat.id,
+            ctx.from.id
+        );
+
+        if (
+            member.status === "administrator" ||
+            member.status === "creator"
+        ) {
+            return next();
+        }
+
+        const result = await pool.query(
+            `SELECT word
+             FROM filters
+             WHERE chat_id=$1`,
+            [ctx.chat.id]
+        );
+
+        const text = ctx.message.text.toLowerCase();
+        for (const row of result.rows) {
+
+            // Escape regex special characters in the blocked word
+            const escaped = row.word.replace(
+                /[.*+?^${}()|[\]\\]/g,
+                "\\$&"
+            );
+
+            // Match whole words (case-insensitive)
+            const regex = new RegExp(
+                `\\b${escaped}\\b`,
+                "i"
+            );
+
+            if (!regex.test(text)) {
+                continue;
+            }
+
+            await ctx.deleteMessage().catch(() => {});
+
+            const warning = await issueWarning(
+                ctx,
+                pool,
+                ctx.from,
+                `Used blocked word: "${row.word}"`,
+                0
+            );
+
+            if (warning.autoMuted) {
+
+                return ctx.reply(
+`🔇 *USER AUTOMATICALLY MUTED*
+
+👤 User: ${ctx.from.first_name}
+🤬 Reason: Used a blocked word
+⏱ Duration: 1 Hour`,
+                    {
+                        parse_mode: "Markdown"
+                    }
+                );
+
+            }
+
+            return ctx.reply(
+`🚫 *BLOCKED WORD DETECTED*
+
+👤 User: ${ctx.from.first_name}
+⚠️ Word: ${row.word}
+📊 Warnings: ${warning.totalWarnings}/3
+
+Please keep the chat respectful.`,
+                {
+                    parse_mode: "Markdown"
+                }
+            );
 
         }
 
