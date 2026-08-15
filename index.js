@@ -799,6 +799,7 @@ require("./commands/filter")(bot, pool, canModerate, isOwner);
 require("./commands/userinfo")(bot, pool, canModerate);
 require("./commands/pin")(bot, canModerate);
 require("./commands/unpin")(bot, canModerate);
+require("./commands/purge")(bot, canModerate);
 
 bot.on("message", async (ctx, next) => {
 
