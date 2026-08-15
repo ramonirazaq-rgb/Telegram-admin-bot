@@ -1,5 +1,7 @@
 module.exports = (bot, pool, canModerate, isOwner) => {
 
+const issueWarning = require("../utils/warnings");
+
     // =========================
     // WARN COMMAND
     // =========================
@@ -46,96 +48,17 @@ module.exports = (bot, pool, canModerate, isOwner) => {
                 ? args.join(" ")
                 : "No reason provided";
 
-            // Save warning
-            await pool.query(
-                `INSERT INTO warnings
-                (user_id, chat_id, reason, issued_by)
-                VALUES ($1, $2, $3, $4)`,
-                [
-                    target.id,
-                    ctx.chat.id,
-                    reason,
-                    ctx.from.id
-                ]
-            );
+const result = await issueWarning(
+    ctx,
+    pool,
+    target,
+    reason,
+    ctx.from.id
+);
 
-            // Count total warnings
-            const result = await pool.query(
-                `SELECT COUNT(*) AS total
-                 FROM warnings
-                 WHERE user_id=$1
-                 AND chat_id=$2`,
-                [
-                    target.id,
-                    ctx.chat.id
-                ]
-            );
+if (result.autoMuted) {
 
-            const totalWarnings = Number(result.rows[0].total);
-            // Automatically mute after 3 warnings
-            if (totalWarnings >= 3) {
-
-                const muteUntil = new Date(
-                    Date.now() + (60 * 60 * 1000) // 1 hour
-                );
-
-                await ctx.telegram.restrictChatMember(
-                    ctx.chat.id,
-                    target.id,
-                    {
-                        permissions: {
-                            can_send_messages: false,
-                            can_send_audios: false,
-                            can_send_documents: false,
-                            can_send_photos: false,
-                            can_send_videos: false,
-                            can_send_video_notes: false,
-                            can_send_voice_notes: false,
-                            can_send_polls: false,
-                            can_send_other_messages: false,
-                            can_add_web_page_previews: false
-                        },
-                        until_date: Math.floor(muteUntil.getTime() / 1000)
-                    }
-                );
-
-                await pool.query(
-                    `INSERT INTO mutes
-                    (user_id, chat_id, reason, muted_by, expires_at)
-                    VALUES ($1, $2, $3, $4, $5)`,
-                    [
-                        target.id,
-                        ctx.chat.id,
-                        "Reached warning limit",
-                        ctx.from.id,
-                        muteUntil
-                    ]
-                );
-                // Log the automatic mute
-                await pool.query(
-                    `INSERT INTO logs
-                    (chat_id, user_id, admin_id, action)
-                    VALUES ($1, $2, $3, $4)`,
-                    [
-                        ctx.chat.id,
-                        target.id,
-                        ctx.from.id,
-                        "AUTO_MUTE"
-                    ]
-                );
-
-                // Clear warnings after punishment
-                await pool.query(
-                    `DELETE FROM warnings
-                     WHERE user_id=$1
-                     AND chat_id=$2`,
-                    [
-                        target.id,
-                        ctx.chat.id
-                    ]
-                );
-
-                return ctx.reply(
+    return ctx.reply(
 `🔇 *USER AUTOMATICALLY MUTED*
 
 👤 User: ${target.first_name}
@@ -146,29 +69,26 @@ module.exports = (bot, pool, canModerate, isOwner) => {
 🕒 Time: ${new Date().toUTCString()}
 
 The user's warnings have been reset.`,
-                    {
-                        parse_mode: "Markdown"
-                    }
-                );
+        {
+            parse_mode: "Markdown"
+        }
+    );
 
-            }
-            await ctx.reply(
+}
+
+await ctx.reply(
 `⚠️ *USER WARNED*
 
-👥 User: ${target.first_name}
+👤 User: ${target.first_name}
 🆔 User ID: ${target.id}
 👮 Warned by: ${ctx.from.first_name}
 📝 Reason: ${reason}
-📊 Warnings: ${totalWarnings}/3
+📊 Warnings: ${result.totalWarnings}/3
 🕒 Time: ${new Date().toUTCString()}`,
-                {
-                    parse_mode: "Markdown"
-                }
-            );
-
-            // Auto-punishment placeholder
-            // We'll implement automatic mute/kick at 3 warnings later.
-
+    {
+        parse_mode: "Markdown"
+    }
+);
         } catch (err) {
 
             console.error(err);

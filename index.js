@@ -1,5 +1,6 @@
 require("dotenv").config();
 
+const issueWarning = require("./utils/warnings");
 const {
     canModerate,
     canAccessPanel
@@ -67,6 +68,11 @@ async function initDatabase() {
                 expires_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+           CREATE TABLE IF NOT EXISTS group_settings (
+    chat_id BIGINT PRIMARY KEY,
+    anti_link BOOLEAN DEFAULT FALSE
+);
 
             CREATE TABLE IF NOT EXISTS settings (
                 chat_id BIGINT PRIMARY KEY,
@@ -583,6 +589,101 @@ require("./commands/kick")(bot, pool, canModerate, isOwner);
 require("./commands/mute")(bot, pool, canModerate, isOwner);
 require("./commands/warn")(bot, pool, canModerate, isOwner);
 require("./commands/group")(bot, pool, canModerate, isOwner);
+require("./commands/antilink")(bot, pool, canModerate, isOwner);
+
+bot.on("message", async (ctx, next) => {
+
+    try {
+
+        // Ignore private chats
+        if (ctx.chat.type === "private")
+            return next();
+
+        // Ignore messages without text
+        if (!ctx.message.text)
+            return next();
+
+        // Check if Anti-Link is enabled
+        const settings = await pool.query(
+            `SELECT anti_link
+             FROM group_settings
+             WHERE chat_id=$1`,
+            [ctx.chat.id]
+        );
+
+        if (
+            settings.rowCount === 0 ||
+            !settings.rows[0].anti_link
+        ) {
+            return next();
+        }
+
+        // Ignore admins
+        const member = await ctx.telegram.getChatMember(
+            ctx.chat.id,
+            ctx.from.id
+        );
+
+        if (
+            member.status === "administrator" ||
+            member.status === "creator"
+        ) {
+            return next();
+        }
+
+        // Detect links
+        const linkRegex =
+            /(https?:\/\/|t\.me\/|www\.|telegram\.me\/)/i;
+
+        if (!linkRegex.test(ctx.message.text))
+            return next();
+        // Delete the message
+        await ctx.deleteMessage();
+
+const result = await issueWarning(
+    ctx,
+    pool,
+    ctx.from,
+    "Posted a prohibited link",
+    0
+);
+
+        if (result.autoMuted) {
+
+    return ctx.reply(
+`🔇 *USER AUTOMATICALLY MUTED*
+
+👤 User: ${ctx.from.first_name}
+⚠️ Reason: Repeated link sharing
+⏱ Duration: 1 Hour`,
+        {
+            parse_mode: "Markdown"
+        }
+    );
+
+}
+
+await ctx.reply(
+`⚠️ *LINK REMOVED*
+
+👤 User: ${ctx.from.first_name}
+📊 Warnings: ${result.totalWarnings}/3
+
+🚫 Links are not allowed in this group.`,
+    {
+        parse_mode: "Markdown"
+    }
+);
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+    return next();
+
+});
 
         await bot.launch();
 
