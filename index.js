@@ -81,6 +81,9 @@ ADD COLUMN IF NOT EXISTS anti_spam BOOLEAN DEFAULT FALSE;
 ALTER TABLE group_settings
 ADD COLUMN IF NOT EXISTS welcome BOOLEAN DEFAULT FALSE;
 
+ALTER TABLE group_settings
+ADD COLUMN IF NOT EXISTS clean_service BOOLEAN DEFAULT FALSE;
+
             CREATE TABLE IF NOT EXISTS settings (
                 chat_id BIGINT PRIMARY KEY,
                 welcome_enabled BOOLEAN DEFAULT true,
@@ -599,6 +602,7 @@ require("./commands/group")(bot, pool, canModerate, isOwner);
 require("./commands/antilink")(bot, pool, canModerate, isOwner);
 require("./commands/antispam")(bot, pool, canModerate, isOwner);
 require("./commands/welcome")(bot, pool, canModerate, isOwner);
+require("./commands/cleanservice")(bot, pool, canModerate, isOwner);
 
 bot.on("message", async (ctx, next) => {
 
@@ -878,6 +882,54 @@ bot.on("left_chat_member", async (ctx) => {
         console.error(err);
 
     }
+
+});
+
+bot.on("message", async (ctx, next) => {
+
+    try {
+
+        if (ctx.chat.type === "private")
+            return next();
+
+        const settings = await pool.query(
+            `SELECT clean_service
+             FROM group_settings
+             WHERE chat_id=$1`,
+            [ctx.chat.id]
+        );
+
+        if (
+            settings.rowCount === 0 ||
+            !settings.rows[0].clean_service
+        ) {
+            return next();
+        }
+
+        const msg = ctx.message;
+        if (
+            msg.new_chat_members ||
+            msg.left_chat_member ||
+            msg.new_chat_title ||
+            msg.new_chat_photo ||
+            msg.delete_chat_photo ||
+            msg.group_chat_created ||
+            msg.supergroup_chat_created ||
+            msg.channel_chat_created ||
+            msg.pinned_message
+        ) {
+
+            await ctx.deleteMessage().catch(() => {});
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+    return next();
 
 });
 
