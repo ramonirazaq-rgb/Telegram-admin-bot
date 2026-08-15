@@ -1,5 +1,6 @@
 require("dotenv").config();
 
+const spamTracker = new Map();
 const issueWarning = require("./utils/warnings");
 const {
     canModerate,
@@ -73,6 +74,9 @@ async function initDatabase() {
     chat_id BIGINT PRIMARY KEY,
     anti_link BOOLEAN DEFAULT FALSE
 );
+
+ALTER TABLE group_settings
+ADD COLUMN IF NOT EXISTS anti_spam BOOLEAN DEFAULT FALSE;
 
             CREATE TABLE IF NOT EXISTS settings (
                 chat_id BIGINT PRIMARY KEY,
@@ -590,6 +594,7 @@ require("./commands/mute")(bot, pool, canModerate, isOwner);
 require("./commands/warn")(bot, pool, canModerate, isOwner);
 require("./commands/group")(bot, pool, canModerate, isOwner);
 require("./commands/antilink")(bot, pool, canModerate, isOwner);
+require("./commands/antispam")(bot, pool, canModerate, isOwner);
 
 bot.on("message", async (ctx, next) => {
 
@@ -674,6 +679,110 @@ await ctx.reply(
         parse_mode: "Markdown"
     }
 );
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+    return next();
+
+});
+
+bot.on("message", async (ctx, next) => {
+
+    try {
+
+        if (ctx.chat.type === "private")
+            return next();
+
+        const settings = await pool.query(
+            `SELECT anti_spam
+             FROM group_settings
+             WHERE chat_id=$1`,
+            [ctx.chat.id]
+        );
+
+        if (
+            settings.rowCount === 0 ||
+            !settings.rows[0].anti_spam
+        ) {
+            return next();
+        }
+
+        const member = await ctx.telegram.getChatMember(
+            ctx.chat.id,
+            ctx.from.id
+        );
+
+        if (
+            member.status === "administrator" ||
+            member.status === "creator"
+        ) {
+            return next();
+        }
+
+        const key = `${ctx.chat.id}:${ctx.from.id}`;
+        const now = Date.now();
+        if (!spamTracker.has(key)) {
+            spamTracker.set(key, []);
+        }
+
+        const messages = spamTracker.get(key);
+
+        // Keep only messages from the last 8 seconds
+        const recent = messages.filter(
+            time => now - time < 8000
+        );
+
+        recent.push(now);
+
+        spamTracker.set(key, recent);
+
+        // 5 or more messages in 8 seconds = spam
+        if (recent.length >= 5) {
+
+            await ctx.deleteMessage().catch(() => {});
+
+            const result = await issueWarning(
+                ctx,
+                pool,
+                ctx.from,
+                "Spam / Flood detected",
+                0
+            );
+
+            spamTracker.delete(key);
+
+            if (result.autoMuted) {
+
+                return ctx.reply(
+`🔇 *USER AUTOMATICALLY MUTED*
+
+👤 User: ${ctx.from.first_name}
+⚠️ Reason: Spam / Flood
+⏱ Duration: 1 Hour`,
+                    {
+                        parse_mode: "Markdown"
+                    }
+                );
+
+            }
+
+            return ctx.reply(
+`🚨 *SPAM DETECTED*
+
+👤 User: ${ctx.from.first_name}
+📊 Warnings: ${result.totalWarnings}/3
+
+⚠️ Please stop flooding the chat.`,
+                {
+                    parse_mode: "Markdown"
+                }
+            );
+
+        }
 
     } catch (err) {
 
