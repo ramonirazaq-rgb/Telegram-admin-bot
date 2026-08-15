@@ -51,7 +51,7 @@ async function initDatabase() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
-CREATE TABLE IF NOT EXISTS filters (
+CREATE TABLE IF NOT EXISTS auto_response (
     id SERIAL PRIMARY KEY,
     chat_id BIGINT NOT NULL,
     word TEXT NOT NULL,
