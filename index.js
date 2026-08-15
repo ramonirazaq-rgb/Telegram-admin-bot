@@ -170,6 +170,38 @@ async function isTelegramAdmin(ctx) {
     }
 }
 
+async function toggleSetting(chatId, column) {
+
+    const result = await pool.query(
+        `SELECT ${column}
+         FROM group_settings
+         WHERE chat_id=$1`,
+        [chatId]
+    );
+
+    const current =
+        result.rowCount > 0
+            ? result.rows[0][column]
+            : false;
+
+    await pool.query(
+        `INSERT INTO group_settings (chat_id, ${column})
+         VALUES ($1, $2)
+         ON CONFLICT (chat_id)
+         DO UPDATE SET ${column} = EXCLUDED.${column}`,
+        [
+            chatId,
+            !current
+        ]
+    );
+
+    return !current;
+
+}
+
+async function startBot() {
+}
+
 // =========================
 // START
 // =========================
@@ -504,23 +536,94 @@ bot.action("panel_logs", async (ctx) => {
 // =========================
 
 bot.action("panel_settings", async (ctx) => {
+
     if (!(await canAccessPanel(ctx)))
-    return ctx.answerCbQuery("⛔ Unauthorized.");
+        return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
     await ctx.editMessageText(
-        "⚙️ *SETTINGS*\n\n" +
-        "Bot configuration will be connected next.",
+        "⚙️ *GROUP SETTINGS*\n\nTap a button to enable or disable a feature.",
         {
             parse_mode: "Markdown",
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "⬅️ Back", callback_data: "panel_back" }]
+                    [
+                        { text: "🌐 Anti-Link", callback_data: "toggle_antilink" },
+                        { text: "🚨 Anti-Spam", callback_data: "toggle_antispam" }
+                    ],
+                    [
+                        { text: "👋 Welcome", callback_data: "toggle_welcome" },
+                        { text: "🤬 Bad Words", callback_data: "toggle_badwords" }
+                    ],
+                    [
+                        { text: "🧹 Clean Service", callback_data: "toggle_cleanservice" }
+                    ],
+                    [
+                        { text: "⬅️ Back", callback_data: "panel_back" }
+                    ]
                 ]
             }
         }
     );
+
+});
+
+bot.action("toggle_antilink", async (ctx) => {
+
+    if (!(await canAccessPanel(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    const enabled = await toggleSetting(
+        ctx.chat.id,
+        "anti_link"
+    );
+
+    await ctx.answerCbQuery(
+        enabled
+            ? "🟢 Anti-Link Enabled"
+            : "🔴 Anti-Link Disabled"
+    );
+
+    return ctx.editMessageReplyMarkup({
+        inline_keyboard: [
+            [
+                {
+                    text: enabled
+                        ? "🟢 Anti-Link"
+                        : "🔴 Anti-Link",
+                    callback_data: "toggle_antilink"
+                },
+                {
+                    text: "🚨 Anti-Spam",
+                    callback_data: "toggle_antispam"
+                }
+            ],
+            [
+                {
+                    text: "👋 Welcome",
+                    callback_data: "toggle_welcome"
+                },
+                {
+                    text: "🤬 Bad Words",
+                    callback_data: "toggle_badwords"
+                }
+            ],
+            [
+                {
+                    text: "🧹 Clean Service",
+                    callback_data: "toggle_cleanservice"
+                }
+            ],
+            [
+                {
+                    text: "⬅️ Back",
+                    callback_data: "panel_back"
+                }
+            ]
+        ]
+    });
+
 });
 
 // =========================
