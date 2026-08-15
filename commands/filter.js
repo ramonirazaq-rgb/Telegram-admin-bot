@@ -149,14 +149,11 @@ ${words}`,
 
         } catch (err) {
 
-            console.error(err);
+    console.error("FILTER ERROR:", err);
+    console.error("MESSAGE:", err.message);
+    console.error("DETAIL:", err.detail);
+    console.error("CODE:", err.code);
 
-            return ctx.reply(
-                "❌ Failed to manage the word filter."
-            );
+    return ctx.reply("❌ " + err.message);
 
-        }
-
-    });
-
-};
+}
