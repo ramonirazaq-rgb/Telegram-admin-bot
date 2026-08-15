@@ -208,6 +208,46 @@ const settingMap = {
     toggle_cleanservice: "clean_service"
 };
 
+async function toggleLock(chatId, column) {
+
+    const result = await pool.query(
+        `SELECT ${column}
+         FROM locks
+         WHERE chat_id=$1`,
+        [chatId]
+    );
+
+    const current =
+        result.rowCount
+            ? result.rows[0][column]
+            : false;
+
+    await pool.query(
+        `INSERT INTO locks (chat_id, ${column})
+         VALUES ($1, $2)
+         ON CONFLICT (chat_id)
+         DO UPDATE SET ${column}=EXCLUDED.${column}`,
+        [
+            chatId,
+            !current
+        ]
+    );
+
+    return !current;
+
+}
+
+const lockMap = {
+    lock_text: "text_locked",
+    lock_links: "links_locked",
+    lock_photos: "photos_locked",
+    lock_videos: "videos_locked",
+    lock_documents: "documents_locked",
+    lock_stickers: "stickers_locked",
+    lock_gifs: "gifs_locked",
+    lock_polls: "polls_locked"
+};
+
 async function buildSettingsKeyboard(chatId) {
 
     const result = await pool.query(
@@ -258,6 +298,99 @@ async function buildSettingsKeyboard(chatId) {
                 {
                     text: `${settings.clean_service ? "🟢" : "🔴"} Clean Service`,
                     callback_data: "toggle_cleanservice"
+                }
+            ],
+            [
+                {
+                    text: "⬅️ Back",
+                    callback_data: "panel_back"
+                }
+            ]
+        ]
+    };
+
+}
+
+async function buildLocksKeyboard(chatId) {
+
+    const result = await pool.query(
+        `SELECT
+            text_locked,
+            links_locked,
+            photos_locked,
+            videos_locked,
+            documents_locked,
+            stickers_locked,
+            gifs_locked,
+            polls_locked
+         FROM locks
+         WHERE chat_id=$1`,
+        [chatId]
+    );
+
+    const locks = result.rowCount
+        ? result.rows[0]
+        : {
+            text_locked: false,
+            links_locked: false,
+            photos_locked: false,
+            videos_locked: false,
+            documents_locked: false,
+            stickers_locked: false,
+            gifs_locked: false,
+            polls_locked: false
+        };
+
+    return {
+        inline_keyboard: [
+            [
+                {
+                    text: `${locks.text_locked ? "🔒" : "🔓"} Text`,
+                    callback_data: "lock_text"
+                },
+                {
+                    text: `${locks.links_locked ? "🔒" : "🔓"} Links`,
+                    callback_data: "lock_links"
+                }
+            ],
+            [
+                {
+                    text: `${locks.photos_locked ? "🔒" : "🔓"} Photos`,
+                    callback_data: "lock_photos"
+                },
+                {
+                    text: `${locks.videos_locked ? "🔒" : "🔓"} Videos`,
+                    callback_data: "lock_videos"
+                }
+            ],
+            [
+                {
+                    text: `${locks.documents_locked ? "🔒" : "🔓"} Documents`,
+                    callback_data: "lock_documents"
+                },
+                {
+                    text: `${locks.stickers_locked ? "🔒" : "🔓"} Stickers`,
+                    callback_data: "lock_stickers"
+                }
+            ],
+            [
+                {
+                    text: `${locks.gifs_locked ? "🔒" : "🔓"} GIFs`,
+                    callback_data: "lock_gifs"
+                },
+                {
+                    text: `${locks.polls_locked ? "🔒" : "🔓"} Polls`,
+                    callback_data: "lock_polls"
+                }
+            ],
+            [
+                {
+                    text: "🔓 Open Group",
+                    callback_data: "open_group"
+                },
+                {
+                    text: "🔒 Close Group",
+                    callback_data: "close_group"
                 }
             ],
             [
@@ -398,38 +531,13 @@ bot.action("panel_locks", async (ctx) => {
     await ctx.answerCbQuery();
 
     await ctx.editMessageText(
-        "🔒 *GROUP LOCKS*\n\nChoose a restriction:",
-        {
-            parse_mode: "Markdown",
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: "💬 Text", callback_data: "lock_text" },
-                        { text: "🔗 Links", callback_data: "lock_links" }
-                    ],
-                    [
-                        { text: "📷 Photos", callback_data: "lock_photos" },
-                        { text: "🎥 Videos", callback_data: "lock_videos" }
-                    ],
-                    [
-                        { text: "📄 Documents", callback_data: "lock_documents" },
-                        { text: "🎭 Stickers", callback_data: "lock_stickers" }
-                    ],
-                    [
-                        { text: "🎞 GIFs", callback_data: "lock_gifs" },
-                        { text: "📊 Polls", callback_data: "lock_polls" }
-                    ],
-                    [
-                        { text: "🔓 Open Group", callback_data: "lock_open" },
-                        { text: "🔒 Close Group", callback_data: "lock_close" }
-                    ],
-                    [
-                        { text: "⬅️ Back", callback_data: "panel_back" }
-                    ]
-                ]
-            }
-        }
-    );
+    "🔒 *GROUP LOCKS*\n\nChoose a restriction:",
+    {
+        parse_mode: "Markdown",
+        reply_markup: await buildLocksKeyboard(ctx.chat.id)
+    }
+);
+
 });
 
 bot.action("lock_close", async (ctx) => {
@@ -508,6 +616,32 @@ bot.action("lock_open", async (ctx) => {
             parse_mode: "Markdown"
         }
     );
+
+});
+
+Object.keys(lockMap).forEach((action) => {
+
+    bot.action(action, async (ctx) => {
+
+        if (!(await canAccessPanel(ctx)))
+            return ctx.answerCbQuery("⛔ Unauthorized.");
+
+        const enabled = await toggleLock(
+            ctx.chat.id,
+            lockMap[action]
+        );
+
+        await ctx.answerCbQuery(
+            enabled
+                ? "🔒 Locked"
+                : "🔓 Unlocked"
+        );
+
+        return ctx.editMessageReplyMarkup(
+            await buildLocksKeyboard(ctx.chat.id)
+        );
+
+    });
 
 });
 
@@ -800,6 +934,45 @@ require("./commands/userinfo")(bot, pool, canModerate);
 require("./commands/pin")(bot, canModerate);
 require("./commands/unpin")(bot, canModerate);
 require("./commands/purge")(bot, canModerate);
+
+bot.on("message", async (ctx, next) => {
+
+    if (!ctx.chat || ctx.chat.type === "private")
+        return next();
+
+    const result = await pool.query(
+        `SELECT
+            text_locked,
+            links_locked,
+            photos_locked,
+            videos_locked,
+            documents_locked,
+            stickers_locked,
+            gifs_locked,
+            polls_locked
+         FROM locks
+         WHERE chat_id=$1`,
+        [ctx.chat.id]
+    );
+
+    if (!result.rowCount)
+        return next();
+
+    const locks = result.rows[0];
+
+    // Text
+    if (
+        locks.text_locked &&
+        ctx.message.text &&
+        !ctx.message.text.startsWith("/")
+    ) {
+        await ctx.deleteMessage().catch(() => {});
+        return;
+    }
+
+    return next();
+
+});
 
 bot.on("message", async (ctx, next) => {
 
