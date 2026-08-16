@@ -1891,6 +1891,8 @@ setInterval(async () => {
 
     try {
 
+console.log("Scheduler tick:", new Date().toISOString());
+
         const result = await pool.query(
             `SELECT *
              FROM scheduled_messages
