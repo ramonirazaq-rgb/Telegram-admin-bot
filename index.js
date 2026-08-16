@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS schedule_state (
     admin_id BIGINT NOT NULL,
     scheduled_at TIMESTAMP NOT NULL
 );
-DROP TABLE IF EXISTS scheduled_messages;
+
         `);
 
         console.log("✅ Database tables ready");
