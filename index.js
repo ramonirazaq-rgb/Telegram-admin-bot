@@ -104,7 +104,6 @@ ADD COLUMN IF NOT EXISTS bad_words BOOLEAN DEFAULT FALSE;
                 anti_flood BOOLEAN DEFAULT true,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-
 CREATE TABLE IF NOT EXISTS broadcast_state (
     chat_id BIGINT PRIMARY KEY,
     admin_id BIGINT NOT NULL,
@@ -191,7 +190,6 @@ async function isTelegramAdmin(ctx) {
         return false;
     }
 }
-
 async function toggleSetting(chatId, column) {
 
     const result = await pool.query(
@@ -292,8 +290,7 @@ async function buildSettingsKeyboard(chatId) {
             bad_words: false,
             clean_service: false
         };
-
-    return {
+return {
         inline_keyboard: [
             [
                 {
@@ -425,10 +422,6 @@ async function buildLocksKeyboard(chatId) {
             ]
         ]
     };
-
-}
-
-async function startBot() {
 }
 
 // =========================
@@ -543,7 +536,6 @@ bot.action("panel_moderation", async (ctx) => {
         }
     );
 });
-
 // =========================
 // LOCKS PANEL
 // =========================
@@ -696,7 +688,6 @@ await ctx.reply("🔒 *Group has been closed.*\n\nOnly administrators can send m
     }
 
 });
-
 bot.action("open_group", async (ctx) => {
 
     try {
@@ -800,7 +791,6 @@ bot.action("panel_members", async (ctx) => {
         }
     );
 });
-
 // =========================
 // STATISTICS
 // =========================
@@ -897,7 +887,6 @@ const spam = await pool.query(
     );
 
 });
-
 // =========================
 // LOGS
 // =========================
@@ -1060,7 +1049,6 @@ Type /cancel to cancel.`
     });
 
 });
-
 // =========================
 // CLOSE PANEL
 // =========================
@@ -1122,10 +1110,6 @@ bot.catch((err) => {
 // =========================
 // START
 // =========================
-
-async function startBot() {
-    try {
-        await initDatabase();
 
 require("./commands/ban")(bot, pool, canModerate, isOwner);
 require("./commands/kick")(bot, pool, canModerate, isOwner);
@@ -1260,8 +1244,7 @@ bot.on("message", async (ctx, next) => {
             ctx.from.id
         ]
     );
-
-    return ctx.reply(
+return ctx.reply(
 `✅ Scheduled successfully!
 
 📅 ${new Date(result.rows[0].scheduled_at).toLocaleString()}`
@@ -1495,7 +1478,6 @@ await logAction(
     );
 
 }
-
 await ctx.reply(
 `⚠️ *LINK REMOVED*
 
@@ -1713,7 +1695,6 @@ bot.on("left_chat_member", async (ctx) => {
     }
 
 });
-
 bot.on("message", async (ctx, next) => {
 
     try {
@@ -1882,120 +1863,104 @@ Please keep the chat respectful.`,
     return next();
 
 });
-console.log("Before bot.launch()");
-        await bot.launch();
-console.log("After bot.launch()");
+
+async function startBot() {
+    try {
+
+        await initDatabase();
+
+        console.log("Before bot.launch()");
+         bot.launch();
+        console.log("After bot.launch()");
 
         console.log("🛡️ Admin bot connected to Telegram");
 
-setInterval(async () => {
-
-    try {
-
-console.log("Scheduler tick:", new Date().toISOString());
-
-        const result = await pool.query(
-            `SELECT *
-             FROM scheduled_messages
-             WHERE sent = FALSE
-             AND scheduled_at <= NOW()
-             ORDER BY scheduled_at ASC`
-        );
-
-console.log("Scheduler found:", result.rowCount,"message(s)");
-
-        for (const row of result.rows) {
+        setInterval(async () => {
 
             try {
 
-                switch (row.message_type) {
+                console.log("Scheduler tick:", new Date().toISOString());
 
-                    case "text":
+                const result = await pool.query(
+                    `SELECT *
+                     FROM scheduled_messages
+                     WHERE sent = FALSE
+                     AND scheduled_at <= NOW()
+                     ORDER BY scheduled_at ASC`
+                );
 
-                        await bot.telegram.sendMessage(
-                            row.chat_id,
-                            row.content
+                console.log("Scheduler found:", result.rowCount, "message(s)");
+
+                for (const row of result.rows) {
+
+                    try {
+
+                        switch (row.message_type) {
+
+                            case "text":
+                                await bot.telegram.sendMessage(
+                                    row.chat_id,
+                                    row.content
+                                );
+                                break;
+
+                            case "photo":
+                                await bot.telegram.sendPhoto(
+                                    row.chat_id,
+                                    row.file_id,
+                                    {
+                                        caption: row.caption || undefined
+                                    }
+                                );
+                                break;
+
+                            case "video":
+                                await bot.telegram.sendVideo(
+                                    row.chat_id,
+                                    row.file_id,
+                                    {
+                                        caption: row.caption || undefined
+                                    }
+                                );
+                                break;
+
+                            case "document":
+                                await bot.telegram.sendDocument(
+                                    row.chat_id,
+                                    row.file_id,
+                                    {
+                                        caption: row.caption || undefined
+                                    }
+                                );
+                                break;
+                        }
+
+                        await pool.query(
+                            `UPDATE scheduled_messages
+                             SET sent = TRUE
+                             WHERE id = $1`,
+                            [row.id]
                         );
 
-                        break;
-
-                    case "photo":
-
-                        await bot.telegram.sendPhoto(
-                            row.chat_id,
-                            row.file_id,
-                            {
-                                caption: row.caption || undefined
-                            }
-                        );
-
-                        break;
-
-                    case "video":
-
-                        await bot.telegram.sendVideo(
-                            row.chat_id,
-                            row.file_id,
-                            {
-                                caption: row.caption || undefined
-                            }
-                        );
-
-                        break;
-
-                    case "document":
-
-                        await bot.telegram.sendDocument(
-                            row.chat_id,
-                            row.file_id,
-                            {
-                                caption: row.caption || undefined
-                            }
-                        );
-
-                        break;
+                    } catch (err) {
+                        console.error("Failed to send scheduled message:", err);
+                    }
 
                 }
 
-                await pool.query(
-                    `UPDATE scheduled_messages
-                     SET sent = TRUE
-                     WHERE id = $1`,
-                    [row.id]
-                );
-
             } catch (err) {
-
-                console.error(
-                    "Failed to send scheduled message:",
-                    err
-                );
-
+                console.error("Scheduler error:", err);
             }
 
-        }
-
-    } catch (err) {
-
-        console.error(
-            "Scheduler error:",
-            err
-        );
-
-    }
-
-}, 10000);
+        }, 10000);
 
     } catch (error) {
         console.error("❌ STARTUP ERROR:", error);
+        console.error(error.stack);
     }
 }
 
 startBot();
-
-// =========================
-// SAFE SHUTDOWN
-// =========================
 
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
