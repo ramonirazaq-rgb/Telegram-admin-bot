@@ -1885,6 +1885,10 @@ Please keep the chat respectful.`,
 
         await bot.launch();
 
+console.log("Before bot.launch()");
+await bot.launch();
+console.log("After bot.launch()");
+
         console.log("🛡️ Admin bot connected to Telegram");
 
 setInterval(async () => {
