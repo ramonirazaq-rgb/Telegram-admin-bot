@@ -136,6 +136,19 @@ ADD COLUMN IF NOT EXISTS group_closed BOOLEAN DEFAULT false;
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+CREATE TABLE IF NOT EXISTS scheduled_messages (
+    id SERIAL PRIMARY KEY,
+    chat_id BIGINT NOT NULL,
+    admin_id BIGINT NOT NULL,
+    message_type TEXT NOT NULL,
+    content TEXT,
+    file_id TEXT,
+    caption TEXT,
+    scheduled_at TIMESTAMP NOT NULL,
+    sent BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
             CREATE TABLE IF NOT EXISTS auto_responses (
                 id SERIAL PRIMARY KEY,
                 chat_id BIGINT NOT NULL,
@@ -143,6 +156,12 @@ ADD COLUMN IF NOT EXISTS group_closed BOOLEAN DEFAULT false;
                 response TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+CREATE TABLE IF NOT EXISTS schedule_state (
+    chat_id BIGINT PRIMARY KEY,
+    admin_id BIGINT NOT NULL,
+    scheduled_at TIMESTAMP NOT NULL
+);
 
             CREATE TABLE IF NOT EXISTS scheduled_messages (
                 id SERIAL PRIMARY KEY,
@@ -1129,6 +1148,133 @@ require("./commands/userinfo")(bot, pool, canModerate);
 require("./commands/pin")(bot, canModerate);
 require("./commands/unpin")(bot, canModerate);
 require("./commands/purge")(bot, canModerate);
+require("./commands/schedule")(
+    bot,
+    pool,
+    canModerate
+);
+
+bot.on("message", async (ctx, next) => {
+
+    const result = await pool.query(
+        `SELECT *
+         FROM schedule_state
+         WHERE chat_id=$1
+         AND admin_id=$2`,
+        [
+            ctx.chat.id,
+            ctx.from.id
+        ]
+    );
+
+    if (!result.rowCount)
+        return next();
+
+    if (ctx.message.text === "/cancel") {
+
+        await pool.query(
+            `DELETE FROM schedule_state
+             WHERE chat_id=$1
+             AND admin_id=$2`,
+            [
+                ctx.chat.id,
+                ctx.from.id
+            ]
+        );
+
+        return ctx.reply("❌ Scheduled message cancelled.");
+
+    }
+
+    let messageType = null;
+    let content = null;
+    let fileId = null;
+    let caption = null;
+
+    if (ctx.message.text) {
+
+        messageType = "text";
+        content = ctx.message.text;
+
+    }
+
+    else if (ctx.message.photo) {
+
+        messageType = "photo";
+        fileId =
+            ctx.message.photo[
+                ctx.message.photo.length - 1
+            ].file_id;
+
+        caption = ctx.message.caption || null;
+
+    }
+
+    else if (ctx.message.video) {
+
+        messageType = "video";
+        fileId = ctx.message.video.file_id;
+        caption = ctx.message.caption || null;
+
+    }
+
+    else if (ctx.message.document) {
+
+        messageType = "document";
+        fileId = ctx.message.document.file_id;
+        caption = ctx.message.caption || null;
+
+    }
+
+    else {
+
+        return ctx.reply(
+            "❌ Only text, photos, videos and documents are supported."
+        );
+
+    }
+
+    await pool.query(
+        `INSERT INTO scheduled_messages
+        (
+            chat_id,
+            admin_id,
+            message_type,
+            content,
+            file_id,
+            caption,
+            scheduled_at
+        )
+        VALUES
+        ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+            ctx.chat.id,
+            ctx.from.id,
+            messageType,
+            content,
+            fileId,
+            caption,
+            result.rows[0].scheduled_at
+        ]
+    );
+
+    await pool.query(
+        `DELETE FROM schedule_state
+         WHERE chat_id=$1
+         AND admin_id=$2`,
+        [
+            ctx.chat.id,
+            ctx.from.id
+        ]
+    );
+
+    return ctx.reply(
+`✅ Scheduled successfully!
+
+📅 ${new Date(result.rows[0].scheduled_at).toLocaleString()}`
+    );
+
+});
 
 bot.on("message", async (ctx, next) => {
 
@@ -1747,6 +1893,101 @@ Please keep the chat respectful.`,
         await bot.launch();
 
         console.log("🛡️ Admin bot connected to Telegram");
+
+setInterval(async () => {
+
+    try {
+
+        const result = await pool.query(
+            `SELECT *
+             FROM scheduled_messages
+             WHERE sent = FALSE
+             AND scheduled_at <= NOW()
+             ORDER BY scheduled_at ASC`
+        );
+
+        for (const row of result.rows) {
+
+            try {
+
+                switch (row.message_type) {
+
+                    case "text":
+
+                        await bot.telegram.sendMessage(
+                            row.chat_id,
+                            row.content
+                        );
+
+                        break;
+
+                    case "photo":
+
+                        await bot.telegram.sendPhoto(
+                            row.chat_id,
+                            row.file_id,
+                            {
+                                caption: row.caption || undefined
+                            }
+                        );
+
+                        break;
+
+                    case "video":
+
+                        await bot.telegram.sendVideo(
+                            row.chat_id,
+                            row.file_id,
+                            {
+                                caption: row.caption || undefined
+                            }
+                        );
+
+                        break;
+
+                    case "document":
+
+                        await bot.telegram.sendDocument(
+                            row.chat_id,
+                            row.file_id,
+                            {
+                                caption: row.caption || undefined
+                            }
+                        );
+
+                        break;
+
+                }
+
+                await pool.query(
+                    `UPDATE scheduled_messages
+                     SET sent = TRUE
+                     WHERE id = $1`,
+                    [row.id]
+                );
+
+            } catch (err) {
+
+                console.error(
+                    "Failed to send scheduled message:",
+                    err
+                );
+
+            }
+
+        }
+
+    } catch (err) {
+
+        console.error(
+            "Scheduler error:",
+            err
+        );
+
+    }
+
+}, 10000);
+
     } catch (error) {
         console.error("❌ STARTUP ERROR:", error);
     }
