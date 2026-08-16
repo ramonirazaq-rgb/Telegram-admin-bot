@@ -162,14 +162,7 @@ CREATE TABLE IF NOT EXISTS schedule_state (
     admin_id BIGINT NOT NULL,
     scheduled_at TIMESTAMP NOT NULL
 );
-
-            CREATE TABLE IF NOT EXISTS scheduled_messages (
-                id SERIAL PRIMARY KEY,
-                chat_id BIGINT NOT NULL,
-                message TEXT NOT NULL,
-                scheduled_for TIMESTAMP NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
+DROP TABLE IF EXISTS scheduled_messages;
         `);
 
         console.log("✅ Database tables ready");
