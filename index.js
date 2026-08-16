@@ -105,6 +105,12 @@ ADD COLUMN IF NOT EXISTS bad_words BOOLEAN DEFAULT FALSE;
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+CREATE TABLE IF NOT EXISTS broadcast_state (
+    chat_id BIGINT PRIMARY KEY,
+    admin_id BIGINT NOT NULL,
+    mode TEXT NOT NULL
+);
+
             CREATE TABLE IF NOT EXISTS locks (
                 chat_id BIGINT PRIMARY KEY,
                 text_locked BOOLEAN DEFAULT false,
@@ -963,9 +969,63 @@ bot.action("panel_broadcast", async (ctx) => {
 
     await ctx.answerCbQuery();
 
-    await ctx.reply(
-        "📢 Broadcast system will be connected to the database and channel controls next."
+return ctx.editMessageText(
+    "📢 *BROADCAST*\n\nChoose what you want to send:",
+    {
+        parse_mode: "Markdown",
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    {
+                        text: "📝 Text",
+                        callback_data: "broadcast_text"
+                    }
+                ],
+                [
+                    {
+                        text: "⬅️ Back",
+                        callback_data: "panel_back"
+                    }
+                ]
+            ]
+        }
+    }
+);
+
+});
+
+bot.action("broadcast_text", async (ctx) => {
+
+    if (!(await canAccessPanel(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await pool.query(
+        `INSERT INTO broadcast_state
+         (chat_id, admin_id, mode)
+         VALUES ($1, $2, 'text')
+         ON CONFLICT (chat_id)
+         DO UPDATE SET
+             admin_id = EXCLUDED.admin_id,
+             mode = EXCLUDED.mode`,
+        [
+            ctx.chat.id,
+            ctx.from.id
+        ]
     );
+
+    await ctx.answerCbQuery();
+
+    return ctx.reply(
+`📢 *TEXT BROADCAST*
+
+Send the message you want me to broadcast.
+
+Type /cancel to cancel.`,
+        {
+            parse_mode: "Markdown"
+        }
+    );
+
 });
 
 // =========================
@@ -1048,6 +1108,61 @@ require("./commands/userinfo")(bot, pool, canModerate);
 require("./commands/pin")(bot, canModerate);
 require("./commands/unpin")(bot, canModerate);
 require("./commands/purge")(bot, canModerate);
+
+bot.on("message", async (ctx, next) => {
+
+    if (!ctx.message.text)
+        return next();
+
+    const result = await pool.query(
+        `SELECT *
+         FROM broadcast_state
+         WHERE chat_id=$1
+         AND admin_id=$2`,
+        [
+            ctx.chat.id,
+            ctx.from.id
+        ]
+    );
+
+    if (!result.rowCount)
+        return next();
+
+    if (ctx.message.text === "/cancel") {
+
+        await pool.query(
+            `DELETE FROM broadcast_state
+             WHERE chat_id=$1
+             AND admin_id=$2`,
+            [
+                ctx.chat.id,
+                ctx.from.id
+            ]
+        );
+
+        return ctx.reply("❌ Broadcast cancelled.");
+    }
+
+    await ctx.reply(
+`📢 *ANNOUNCEMENT*
+
+${ctx.message.text}`,
+        {
+            parse_mode: "Markdown"
+        }
+    );
+
+    await pool.query(
+        `DELETE FROM broadcast_state
+         WHERE chat_id=$1
+         AND admin_id=$2`,
+        [
+            ctx.chat.id,
+            ctx.from.id
+        ]
+    );
+
+});
 
 bot.on("message", async (ctx, next) => {
 
