@@ -975,56 +975,77 @@ return ctx.editMessageText(
         parse_mode: "Markdown",
         reply_markup: {
             inline_keyboard: [
-                [
-                    {
-                        text: "📝 Text",
-                        callback_data: "broadcast_text"
-                    }
-                ],
-                [
-                    {
-                        text: "⬅️ Back",
-                        callback_data: "panel_back"
-                    }
-                ]
-            ]
+    [
+        {
+            text: "📝 Text",
+            callback_data: "broadcast_text"
+        },
+        {
+            text: "📷 Photo",
+            callback_data: "broadcast_photo"
+        }
+    ],
+    [
+        {
+            text: "🎥 Video",
+            callback_data: "broadcast_video"
+        },
+        {
+            text: "📄 Document",
+            callback_data: "broadcast_document"
+        }
+    ],
+    [
+        {
+            text: "⬅️ Back",
+            callback_data: "panel_back"
+        }
+    ]
+]
         }
     }
 );
 
 });
 
-bot.action("broadcast_text", async (ctx) => {
+const broadcastModes = [
+    "text",
+    "photo",
+    "video",
+    "document"
+];
 
-    if (!(await canAccessPanel(ctx)))
-        return ctx.answerCbQuery("⛔ Unauthorized.");
+broadcastModes.forEach(mode => {
 
-    await pool.query(
-        `INSERT INTO broadcast_state
-         (chat_id, admin_id, mode)
-         VALUES ($1, $2, 'text')
-         ON CONFLICT (chat_id)
-         DO UPDATE SET
-             admin_id = EXCLUDED.admin_id,
-             mode = EXCLUDED.mode`,
-        [
-            ctx.chat.id,
-            ctx.from.id
-        ]
-    );
+    bot.action(`broadcast_${mode}`, async (ctx) => {
 
-    await ctx.answerCbQuery();
+        if (!(await canAccessPanel(ctx)))
+            return ctx.answerCbQuery("⛔ Unauthorized.");
 
-    return ctx.reply(
-`📢 *TEXT BROADCAST*
+        await pool.query(
+            `INSERT INTO broadcast_state
+             (chat_id, admin_id, mode)
+             VALUES ($1,$2,$3)
+             ON CONFLICT(chat_id)
+             DO UPDATE SET
+                admin_id=EXCLUDED.admin_id,
+                mode=EXCLUDED.mode`,
+            [
+                ctx.chat.id,
+                ctx.from.id,
+                mode
+            ]
+        );
 
-Send the message you want me to broadcast.
+        await ctx.answerCbQuery();
 
-Type /cancel to cancel.`,
-        {
-            parse_mode: "Markdown"
-        }
-    );
+        return ctx.reply(
+`📢 Send a ${mode} to broadcast.
+
+Type /cancel to cancel.`
+        );
+
+    });
 
 });
 
@@ -1111,9 +1132,6 @@ require("./commands/purge")(bot, canModerate);
 
 bot.on("message", async (ctx, next) => {
 
-    if (!ctx.message.text)
-        return next();
-
     const result = await pool.query(
         `SELECT *
          FROM broadcast_state
@@ -1128,6 +1146,8 @@ bot.on("message", async (ctx, next) => {
     if (!result.rowCount)
         return next();
 
+    const mode = result.rows[0].mode;
+
     if (ctx.message.text === "/cancel") {
 
         await pool.query(
@@ -1141,16 +1161,22 @@ bot.on("message", async (ctx, next) => {
         );
 
         return ctx.reply("❌ Broadcast cancelled.");
+
     }
 
-    await ctx.reply(
-`📢 *ANNOUNCEMENT*
+    if (mode === "text" && !ctx.message.text)
+        return ctx.reply("❌ Please send a text message.");
 
-${ctx.message.text}`,
-        {
-            parse_mode: "Markdown"
-        }
-    );
+    if (mode === "photo" && !ctx.message.photo)
+        return ctx.reply("❌ Please send a photo.");
+
+    if (mode === "video" && !ctx.message.video)
+        return ctx.reply("❌ Please send a video.");
+
+    if (mode === "document" && !ctx.message.document)
+        return ctx.reply("❌ Please send a document.");
+
+    await ctx.copyMessage(ctx.chat.id);
 
     await pool.query(
         `DELETE FROM broadcast_state
