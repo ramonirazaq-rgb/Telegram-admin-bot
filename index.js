@@ -1899,6 +1899,8 @@ setInterval(async () => {
              ORDER BY scheduled_at ASC`
         );
 
+console.log("Scheduler found:", result.rowCount,"message(s)");
+
         for (const row of result.rows) {
 
             try {
