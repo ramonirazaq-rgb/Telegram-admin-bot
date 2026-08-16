@@ -664,6 +664,11 @@ await pool.query(
 await ctx.editMessageReplyMarkup(
     await buildLocksKeyboard(ctx.chat.id)
 );
+
+await ctx.reply("🔒 *Group has been closed.*\n\nOnly administrators can send messages.", {
+    parse_mode: "Markdown"
+});
+
     } catch (err) {
 
         console.error(err);
@@ -713,6 +718,10 @@ await pool.query(
 await ctx.editMessageReplyMarkup(
     await buildLocksKeyboard(ctx.chat.id)
 );
+
+await ctx.reply("🔓 *Group has been opened.*\n\nAll members can now send messages.", {
+    parse_mode: "Markdown"
+});
 
     } catch (err) {
 
