@@ -45,6 +45,9 @@ or
                     0
                 );
 
+// Convert WAT (UTC+1) to UTC before saving
+scheduledAt.setHours(scheduledAt.getHours() - 1);
+
                 // If today's time has already passed,
                 // schedule for tomorrow.
                 if (scheduledAt <= now)
