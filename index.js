@@ -484,6 +484,7 @@ if (ctx.chat.type === "private") {
                     ],
                     [
                         { text: "👥 Members", callback_data: "panel_members" },
+                        { text: "📅 Schedule", callback_data: "panel_schedule" },
                         { text: "📢 Broadcast", callback_data: "panel_broadcast" }
                     ],
                     [
@@ -1049,6 +1050,72 @@ Type /cancel to cancel.`
     });
 
 });
+
+// =========================
+// PANEL SCHEDULE
+// =========================
+
+bot.action("panel_schedule", async (ctx) => {
+
+    if (!(await canAccessPanel(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    await ctx.editMessageText(
+        "📅 *SCHEDULE MANAGER*\n\nChoose an option:",
+        {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: "➕ Schedule Message", callback_data: "schedule_new" },
+                        { text: "📋 Scheduled List", callback_data: "schedule_list" }
+                    ],
+                    [
+                        { text: "✏️ Edit Schedule", callback_data: "schedule_edit" },
+                        { text: "❌ Cancel Schedule", callback_data: "schedule_cancel" }
+                    ],
+                    [
+                        { text: "🔁 Recurring", callback_data: "schedule_recurring" },
+                        { text: "📌 Pin After Send", callback_data: "schedule_pin" }
+                    ],
+                    [
+                        { text: "⬅️ Back", callback_data: "panel_main" }
+                    ]
+                ]
+            }
+        }
+    );
+
+});
+
+bot.action("schedule_new", async (ctx) => {
+
+    if (!(await canModerate(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    await ctx.reply(
+`📅 *Schedule a Message*
+
+Send the time using one of these formats:
+
+• \`/schedule HH:MM\`
+• \`/schedule YYYY-MM-DD HH:MM\`
+
+Example:
+\`/schedule 18:30\`
+or
+\`/schedule 2026-08-25 18:30\``,
+        {
+            parse_mode: "Markdown"
+        }
+    );
+
+});
+
 // =========================
 // CLOSE PANEL
 // =========================
