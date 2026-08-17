@@ -1,4 +1,4 @@
-module.exports = (bot, pool, canModerate) => {
+module.exports = (bot, pool, canModerate, canAccessPanel) => {
 
     bot.command("schedule", async (ctx) => {
 
@@ -160,6 +160,44 @@ bot.command("schedulelist", async (ctx) => {
     return ctx.reply(text, {
         parse_mode: "Markdown"
     });
+
+});
+
+bot.action("panel_schedule", async (ctx) => {
+
+    if (!(await canAccessPanel(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    return ctx.editMessageText(
+`📅 *SCHEDULE MANAGER*
+
+Choose an option:`,
+        {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "➕ Schedule Message",
+                            callback_data: "schedule_new"
+                        },
+                        {
+                            text: "📋 Scheduled List",
+                            callback_data: "schedule_list"
+                        }
+                    ],
+                    [
+                        {
+                            text: "⬅️ Back",
+                            callback_data: "panel_back"
+                        }
+                    ]
+                ]
+            }
+        }
+    );
 
 });
 
