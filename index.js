@@ -1081,7 +1081,7 @@ bot.action("panel_schedule", async (ctx) => {
                         { text: "📌 Pin After Send", callback_data: "schedule_pin" }
                     ],
                     [
-                        { text: "⬅️ Back", callback_data: "panel_main" }
+                        { text: "⬅️ Back", callback_data: "panel_back" }
                     ]
                 ]
             }
@@ -1158,6 +1158,7 @@ bot.action("panel_back", async (ctx) => {
                     ],
                     [
                         { text: "⚙️ Settings", callback_data: "panel_settings" },
+                        { text: "📅 Schedule", callback_data: "panel_schedule" },
                         { text: "❌ Close", callback_data: "panel_close" }
                     ]
                 ]
