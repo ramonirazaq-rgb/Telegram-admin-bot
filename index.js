@@ -1055,64 +1055,27 @@ Type /cancel to cancel.`
 // PANEL SCHEDULE
 // =========================
 
-bot.action("panel_schedule", async (ctx) => {
-
-    if (!(await canAccessPanel(ctx)))
-        return ctx.answerCbQuery("⛔ Unauthorized.");
-
-    await ctx.answerCbQuery();
-
-    await ctx.editMessageText(
-        "📅 *SCHEDULE MANAGER*\n\nChoose an option:",
-        {
-            parse_mode: "Markdown",
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: "➕ Schedule Message", callback_data: "schedule_new" },
-                        { text: "📋 Scheduled List", callback_data: "schedule_list" }
-                    ],
-                    [
-                        { text: "✏️ Edit Schedule", callback_data: "schedule_edit" },
-                        { text: "❌ Cancel Schedule", callback_data: "schedule_cancel" }
-                    ],
-                    [
-                        { text: "🔁 Recurring", callback_data: "schedule_recurring" },
-                        { text: "📌 Pin After Send", callback_data: "schedule_pin" }
-                    ],
-                    [
-                        { text: "⬅️ Back", callback_data: "panel_back" }
-                    ]
-                ]
-            }
-        }
-    );
-
-});
-
-bot.action("schedule_new", async (ctx) => {
+bot.action("schedule_list", async (ctx) => {
 
     if (!(await canModerate(ctx)))
         return ctx.answerCbQuery("⛔ Unauthorized.");
 
     await ctx.answerCbQuery();
 
-    await ctx.reply(
-`📅 *Schedule a Message*
+    ctx.message = {
+        ...ctx.callbackQuery.message,
+        text: "/schedulelist"
+    };
 
-Send the time using one of these formats:
-
-• \`/schedule HH:MM\`
-• \`/schedule YYYY-MM-DD HH:MM\`
-
-Example:
-\`/schedule 18:30\`
-or
-\`/schedule 2026-08-25 18:30\``,
-        {
-            parse_mode: "Markdown"
+    return bot.handleUpdate({
+        update_id: 0,
+        message: {
+            ...ctx.message,
+            from: ctx.from,
+            chat: ctx.chat,
+            text: "/schedulelist"
         }
-    );
+    });
 
 });
 
@@ -1196,7 +1159,8 @@ require("./commands/purge")(bot, canModerate);
 require("./commands/schedule")(
     bot,
     pool,
-    canModerate
+    canModerate,
+    canAccessPanel
 );
 
 bot.on("message", async (ctx, next) => {

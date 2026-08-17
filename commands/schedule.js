@@ -127,4 +127,40 @@ Type /cancel to cancel.`
 
     });
 
+bot.command("schedulelist", async (ctx) => {
+
+    if (!(await canModerate(ctx)))
+        return;
+
+    const result = await pool.query(
+        `SELECT id, message_type, scheduled_at
+         FROM scheduled_messages
+         WHERE chat_id=$1
+         AND sent=FALSE
+         ORDER BY scheduled_at`,
+        [ctx.chat.id]
+    );
+
+    if (!result.rowCount)
+        return ctx.reply("📭 No scheduled messages.");
+
+    let text = "📅 *Scheduled Messages*\n\n";
+
+    result.rows.forEach((row) => {
+        text +=
+`🆔 ${row.id}
+📂 ${row.message_type}
+🕒 ${row.scheduled_at.toLocaleString()}
+
+`;
+    });
+
+    text += `Total: ${result.rowCount}`;
+
+    return ctx.reply(text, {
+        parse_mode: "Markdown"
+    });
+
+});
+
 };
