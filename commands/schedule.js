@@ -274,4 +274,54 @@ bot.action("schedule_list", async (ctx) => {
     }
 });
 
+bot.action("schedule_new", async (ctx) => {
+
+    if (!(await canModerate(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    try {
+
+        await ctx.editMessageText(
+`📅 *SCHEDULE A MESSAGE*
+
+Send:
+
+/schedule HH:MM
+
+or
+
+/schedule YYYY-MM-DD HH:MM
+
+Example:
+
+/schedule 18:30
+
+or
+
+/schedule 2026-09-01 18:30`,
+            {
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: "⬅️ Back",
+                                callback_data: "panel_schedule"
+                            }
+                        ]
+                    ]
+                }
+            }
+        );
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+});
+
 };

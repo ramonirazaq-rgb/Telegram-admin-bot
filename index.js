@@ -1054,7 +1054,7 @@ Type /cancel to cancel.`
 // =========================
 // PANEL SCHEDULE
 // =========================
-
+/*
 bot.action("schedule_list", async (ctx) => {
 
     if (!(await canModerate(ctx)))
@@ -1078,7 +1078,7 @@ bot.action("schedule_list", async (ctx) => {
     });
 
 });
-
+*/
 // =========================
 // CLOSE PANEL
 // =========================
