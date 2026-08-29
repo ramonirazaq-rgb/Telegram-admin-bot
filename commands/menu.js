@@ -119,8 +119,12 @@ const menu = `
 © 2026 Patrick
 `;
 
-await ctx.reply(menu);
-
-});
+await ctx.replyWithVideo(
+    "BAACAgQAAxkBAAM4apKkiNo6oGqqVYkbDJYZiaPEApUAAyIAAskmmVBgmPkeWE1rLz0E",
+    {
+        caption: menu,
+        parse_mode: "Markdown"
+    }
+);
 
 };
