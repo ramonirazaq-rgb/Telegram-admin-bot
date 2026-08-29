@@ -201,4 +201,77 @@ Choose an option:`,
 
 });
 
+bot.action("schedule_list", async (ctx) => {
+    if (!(await canModerate(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    try {
+        const result = await pool.query(
+            `SELECT id, message_type, scheduled_at
+             FROM scheduled_messages
+             WHERE chat_id = $1
+             AND sent = FALSE
+             ORDER BY scheduled_at ASC`,
+            [ctx.chat.id]
+        );
+
+        if (!result.rowCount) {
+            return ctx.editMessageText(
+                "📋 *SCHEDULED MESSAGES*\n\nNo scheduled messages found.",
+                {
+                    parse_mode: "Markdown",
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                {
+                                    text: "⬅️ Back",
+                                    callback_data: "panel_schedule"
+                                }
+                            ]
+                        ]
+                    }
+                }
+            );
+        }
+
+        let text = "📋 *SCHEDULED MESSAGES*\n\n";
+
+        result.rows.forEach((row, index) => {
+            text +=
+`*${index + 1}.*
+📅 ${new Date(row.scheduled_at).toLocaleDateString()}
+🕒 ${new Date(row.scheduled_at).toLocaleTimeString()}
+📦 ${row.message_type}
+🆔 ${row.id}
+
+──────────────────
+
+`;
+        });
+
+        text += `Total: *${result.rowCount}*`;
+
+        await ctx.editMessageText(text, {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "⬅️ Back",
+                            callback_data: "panel_schedule"
+                        }
+                    ]
+                ]
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+
+        ctx.reply("❌ Failed to load scheduled messages.");
+    }
+});
+
 };
