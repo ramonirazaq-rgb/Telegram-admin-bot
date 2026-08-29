@@ -295,6 +295,74 @@ bot.action("schedule_list", async (ctx) => {
     }
 });
 
+bot.action("schedule_cancel", async (ctx) => {
+
+    if (!(await canAccessPanel(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    const result = await db.query(
+        `SELECT id, content, scheduled_at
+         FROM scheduled_messages
+         WHERE chat_id = $1
+         AND sent = FALSE
+         ORDER BY scheduled_at ASC`,
+        [ctx.chat.id]
+    );
+
+    if (result.rows.length === 0) {
+        return ctx.editMessageText(
+            "❌ No pending scheduled messages found."
+        );
+    }
+
+    const buttons = result.rows.map(msg => [
+        {
+            text: `❌ Cancel #${msg.id} (${new Date(msg.scheduled_at).toLocaleString()})`,
+            callback_data: `cancel_schedule_${msg.id}`
+        }
+    ]);
+
+    buttons.push([
+        {
+            text: "⬅️ Back",
+            callback_data: "schedule_back"
+        }
+    ]);
+
+    await ctx.editMessageText(
+        "❌ Select a scheduled message to cancel:",
+        {
+            reply_markup: {
+                inline_keyboard: buttons
+            }
+        }
+    );
+
+});
+
+bot.action(/^cancel_schedule_(\d+)$/, async (ctx) => {
+
+    if (!(await canAccessPanel(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    const id = ctx.match[1];
+
+    await db.query(
+        `DELETE FROM scheduled_messages
+         WHERE id = $1`,
+        [id]
+    );
+
+    await ctx.answerCbQuery("✅ Schedule cancelled.");
+
+    await ctx.editMessageText(
+        `✅ Scheduled message #${id} has been cancelled.`
+    );
+
+});
+
 bot.action("schedule_new", async (ctx) => {
 
     if (!(await canModerate(ctx)))
