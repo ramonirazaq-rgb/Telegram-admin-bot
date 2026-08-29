@@ -177,7 +177,7 @@ bot.action("panel_schedule", async (ctx) => {
 Choose an option:`,
         {
             parse_mode: "Markdown",
-            reply_markup: {
+reply_markup: {
                 inline_keyboard: [
                     [
                         {
@@ -187,6 +187,26 @@ Choose an option:`,
                         {
                             text: "📋 Scheduled List",
                             callback_data: "schedule_list"
+                        }
+                    ],
+                    [
+                        {
+                            text: "✏️ Edit Schedule",
+                            callback_data: "schedule_edit"
+                        },
+                        {
+                            text: "❌ Cancel Schedule",
+                            callback_data: "schedule_cancel"
+                        }
+                    ],
+                    [
+                        {
+                            text: "🔁 Recurring",
+                            callback_data: "schedule_recurring"
+                        },
+                        {
+                            text: "📌 Pin After Send",
+                            callback_data: "schedule_pin"
                         }
                     ],
                     [
