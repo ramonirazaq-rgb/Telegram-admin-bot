@@ -1162,6 +1162,12 @@ require("./commands/schedule")(
     canModerate,
     canAccessPanel
 );
+require("./commands/menu")(
+    bot,
+    pool,
+    canModerate,
+    canAccessPanel
+);
 
 bot.on("message", async (ctx, next) => {
 
