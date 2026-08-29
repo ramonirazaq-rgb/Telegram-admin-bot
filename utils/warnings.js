@@ -74,7 +74,7 @@ module.exports = async function issueWarning(
                 muteUntil
             ]
         );
-
+        /*
         await logAction(
     ctx.chat.id,
     target.id,
@@ -82,7 +82,7 @@ module.exports = async function issueWarning(
     "AUTO_MUTE",
     "Reached warning limit"
 );
-
+*/
         await pool.query(
             `DELETE FROM warnings
              WHERE user_id=$1
