@@ -1,4 +1,5 @@
 module.exports = (bot, pool, canModerate, canAccessPanel) => {
+const pendingSchedules = new Map();
 
     bot.command("schedule", async (ctx) => {
 
@@ -281,46 +282,209 @@ bot.action("schedule_new", async (ctx) => {
 
     await ctx.answerCbQuery();
 
-    try {
+    pendingSchedules.set(ctx.from.id, {
+        chatId: ctx.chat.id,
+        step: "message"
+    });
 
-        await ctx.editMessageText(
-`📅 *SCHEDULE A MESSAGE*
+    await ctx.editMessageText(
+`📅 *NEW SCHEDULE*
 
-Send:
+Send the message you want to schedule.
 
-/schedule HH:MM
+Supported:
 
-or
+📝 Text
+🖼 Photo
+🎥 Video
+📄 Document
 
-/schedule YYYY-MM-DD HH:MM
-
-Example:
-
-/schedule 18:30
-
-or
-
-/schedule 2026-09-01 18:30`,
-            {
-                parse_mode: "Markdown",
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: "⬅️ Back",
-                                callback_data: "panel_schedule"
-                            }
-                        ]
+Type /cancel to cancel.`,
+        {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "⬅️ Back",
+                            callback_data: "panel_schedule"
+                        }
                     ]
-                }
+                ]
+            }
+        }
+    );
+
+});
+
+bot.on("message", async (ctx, next) => {
+
+    const state = pendingSchedules.get(ctx.from.id);
+
+    if (!state)
+        return next();
+
+    // STEP 1: Waiting for the message
+    if (state.step === "message") {
+
+        state.message = ctx.message;
+        state.step = "time";
+
+        pendingSchedules.set(ctx.from.id, state);
+
+        return ctx.reply(
+`📅 *MESSAGE SAVED*
+
+Now send the schedule time.
+
+Examples:
+
+18:30
+
+or
+
+2026-09-15 18:30`,
+            {
+                parse_mode: "Markdown"
             }
         );
+    }
 
-    } catch (err) {
+    // STEP 2: Waiting for the time
+    if (state.step === "time") {
 
-        console.error(err);
+        try {
+
+            const input = ctx.message.text.trim();
+
+            let scheduledAt;
+
+            const now = new Date();
+
+            // HH:MM
+            let match = input.match(/^(\d{1,2}):(\d{2})$/);
+
+            if (match) {
+
+                scheduledAt = new Date(now);
+
+                scheduledAt.setHours(
+                    Number(match[1]),
+                    Number(match[2]),
+                    0,
+                    0
+                );
+
+                // Your GMT adjustment
+                scheduledAt.setHours(
+                    scheduledAt.getHours() - 1
+                );
+
+                if (scheduledAt <= now)
+                    scheduledAt.setDate(
+                        scheduledAt.getDate() + 1
+                    );
+
+            } else {
+
+                // YYYY-MM-DD HH:MM
+                scheduledAt = new Date(input);
+
+                if (isNaN(scheduledAt))
+                    return ctx.reply(
+                        "❌ Invalid date/time format."
+                    );
+
+            }
+
+            const msg = state.message;
+
+            let messageType = "text";
+            let content = "";
+            let fileId = null;
+            let caption = null;
+
+            if (msg.text) {
+
+                content = msg.text;
+
+            } else if (msg.photo) {
+
+                messageType = "photo";
+                fileId =
+                    msg.photo[msg.photo.length - 1].file_id;
+                caption = msg.caption || "";
+
+            } else if (msg.video) {
+
+                messageType = "video";
+                fileId = msg.video.file_id;
+                caption = msg.caption || "";
+
+            } else if (msg.document) {
+
+                messageType = "document";
+                fileId = msg.document.file_id;
+                caption = msg.caption || "";
+
+            } else {
+
+                return ctx.reply(
+                    "❌ Unsupported message type."
+                );
+
+            }
+
+            await pool.query(
+                `INSERT INTO scheduled_messages
+                (
+                    chat_id,
+                    admin_id,
+                    message_type,
+                    content,
+                    file_id,
+                    caption,
+                    scheduled_at
+                )
+                VALUES
+                ($1,$2,$3,$4,$5,$6,$7)`,
+                [
+                    state.chatId,
+                    ctx.from.id,
+                    messageType,
+                    content,
+                    fileId,
+                    caption,
+                    scheduledAt
+                ]
+            );
+
+            pendingSchedules.delete(ctx.from.id);
+
+            return ctx.reply(
+`✅ *MESSAGE SCHEDULED*
+
+📅 ${scheduledAt.toLocaleString()}
+
+Your message will be sent automatically.`,
+                {
+                    parse_mode: "Markdown"
+                }
+            );
+
+        } catch (err) {
+
+            console.error(err);
+
+            return ctx.reply(
+                "❌ Failed to schedule message."
+            );
+
+        }
 
     }
+
+    return next();
 
 });
 
