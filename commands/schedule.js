@@ -704,4 +704,119 @@ Type /cancel to cancel.`,
 
 });
 
+bot.action("schedule_cancel", async (ctx) => {
+
+    if (!(await canModerate(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    try {
+
+        const result = await pool.query(
+            `SELECT id, message_type, scheduled_at
+             FROM scheduled_messages
+             WHERE chat_id = $1
+             AND sent = FALSE
+             ORDER BY scheduled_at ASC`,
+            [ctx.chat.id]
+        );
+
+        if (!result.rowCount) {
+
+            return ctx.editMessageText(
+`❌ *CANCEL SCHEDULE*
+
+There are no scheduled messages.`,
+                {
+                    parse_mode: "Markdown",
+                    reply_markup: {
+                        inline_keyboard: [[
+                            {
+                                text: "⬅️ Back",
+                                callback_data: "panel_schedule"
+                            }
+                        ]]
+                    }
+                }
+            );
+
+        }
+
+        const keyboard = result.rows.map(row => [{
+            text: `🗑 ${row.id} • ${row.message_type}`,
+            callback_data: `delete_schedule_${row.id}`
+        }]);
+
+        keyboard.push([{
+            text: "⬅️ Back",
+            callback_data: "panel_schedule"
+        }]);
+
+        await ctx.editMessageText(
+`❌ *CANCEL SCHEDULE*
+
+Select a message to delete.`,
+            {
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: keyboard
+                }
+            }
+        );
+
+    } catch (err) {
+
+        console.error(err);
+
+        ctx.reply("❌ Failed to load schedules.");
+
+    }
+
+});
+
+bot.action(/^delete_schedule_(\d+)$/, async (ctx) => {
+
+    if (!(await canModerate(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    try {
+
+        const id = Number(ctx.match[1]);
+
+        await pool.query(
+            `DELETE FROM scheduled_messages
+             WHERE id = $1`,
+            [id]
+        );
+
+        await ctx.editMessageText(
+`✅ *SCHEDULE CANCELLED*
+
+The scheduled message has been deleted.`,
+            {
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [[
+                        {
+                            text: "⬅️ Back",
+                            callback_data: "panel_schedule"
+                        }
+                    ]]
+                }
+            }
+        );
+
+    } catch (err) {
+
+        console.error(err);
+
+        ctx.reply("❌ Failed to cancel schedule.");
+
+    }
+
+});
+
 };
