@@ -1290,6 +1290,12 @@ return ctx.reply(
 
 });
 
+bot.on("message", (ctx) => {
+    if (ctx.message.video) {
+        console.log(ctx.message.video.file_id);
+    }
+});
+
 bot.on("message", async (ctx, next) => {
 
     const result = await pool.query(
