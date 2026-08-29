@@ -90,12 +90,9 @@ await ctx.reply(
     }
 );
         } catch (err) {
-
-            console.error(err);
-
-            return ctx.reply("❌ Failed to warn user.");
-
-        }
+    console.error(err);
+    return ctx.reply("❌ Unable to warn user.");
+}
 
     });
     // =========================
