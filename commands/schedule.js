@@ -1,5 +1,6 @@
 module.exports = (bot, pool, canModerate, canAccessPanel) => {
 const pendingSchedules = new Map();
+const pendingScheduleEdits = new Map();
 
     bot.command("schedule", async (ctx) => {
 
@@ -295,74 +296,6 @@ bot.action("schedule_list", async (ctx) => {
     }
 });
 
-bot.action("schedule_cancel", async (ctx) => {
-
-    if (!(await canAccessPanel(ctx)))
-        return ctx.answerCbQuery("⛔ Unauthorized.");
-
-    await ctx.answerCbQuery();
-
-    const result = await db.query(
-        `SELECT id, content, scheduled_at
-         FROM scheduled_messages
-         WHERE chat_id = $1
-         AND sent = FALSE
-         ORDER BY scheduled_at ASC`,
-        [ctx.chat.id]
-    );
-
-    if (result.rows.length === 0) {
-        return ctx.editMessageText(
-            "❌ No pending scheduled messages found."
-        );
-    }
-
-    const buttons = result.rows.map(msg => [
-        {
-            text: `❌ Cancel #${msg.id} (${new Date(msg.scheduled_at).toLocaleString()})`,
-            callback_data: `cancel_schedule_${msg.id}`
-        }
-    ]);
-
-    buttons.push([
-        {
-            text: "⬅️ Back",
-            callback_data: "schedule_back"
-        }
-    ]);
-
-    await ctx.editMessageText(
-        "❌ Select a scheduled message to cancel:",
-        {
-            reply_markup: {
-                inline_keyboard: buttons
-            }
-        }
-    );
-
-});
-
-bot.action(/^cancel_schedule_(\d+)$/, async (ctx) => {
-
-    if (!(await canAccessPanel(ctx)))
-        return ctx.answerCbQuery("⛔ Unauthorized.");
-
-    const id = ctx.match[1];
-
-    await db.query(
-        `DELETE FROM scheduled_messages
-         WHERE id = $1`,
-        [id]
-    );
-
-    await ctx.answerCbQuery("✅ Schedule cancelled.");
-
-    await ctx.editMessageText(
-        `✅ Scheduled message #${id} has been cancelled.`
-    );
-
-});
-
 bot.action("schedule_new", async (ctx) => {
 
     if (!(await canModerate(ctx)))
@@ -408,6 +341,82 @@ Type /cancel to cancel.`,
 bot.on("message", async (ctx, next) => {
 
     const state = pendingSchedules.get(ctx.from.id);
+
+const editState = pendingScheduleEdits.get(ctx.from.id);
+
+if (editState) {
+
+    try {
+
+        const input = ctx.message.text.trim();
+
+        let scheduledAt;
+        const now = new Date();
+
+        let match = input.match(/^(\d{1,2}):(\d{2})$/);
+
+        if (match) {
+
+            scheduledAt = new Date(now);
+
+            scheduledAt.setHours(
+                Number(match[1]),
+                Number(match[2]),
+                0,
+                0
+            );
+
+            // GMT adjustment
+            scheduledAt.setHours(
+                scheduledAt.getHours() - 1
+            );
+
+            if (scheduledAt <= now)
+                scheduledAt.setDate(
+                    scheduledAt.getDate() + 1
+                );
+
+        } else {
+
+            scheduledAt = new Date(input);
+
+            if (isNaN(scheduledAt))
+                return ctx.reply("❌ Invalid date/time.");
+
+        }
+
+        await pool.query(
+            `UPDATE scheduled_messages
+             SET scheduled_at = $1
+             WHERE id = $2`,
+            [
+                scheduledAt,
+                editState.scheduleId
+            ]
+        );
+
+        pendingScheduleEdits.delete(ctx.from.id);
+
+        return ctx.reply(
+`✅ *SCHEDULE UPDATED*
+
+📅 ${scheduledAt.toLocaleString()}`,
+            {
+                parse_mode: "Markdown"
+            }
+        );
+
+    } catch (err) {
+
+        console.error(err);
+
+        return ctx.reply(
+            "❌ Failed to update schedule."
+        );
+
+    }
+
+}
 
     if (!state)
         return next();
@@ -573,6 +582,125 @@ Your message will be sent automatically.`,
     }
 
     return next();
+
+});
+
+bot.action("schedule_edit", async (ctx) => {
+
+    if (!(await canModerate(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    try {
+
+        const result = await pool.query(
+            `SELECT id, message_type, scheduled_at
+             FROM scheduled_messages
+             WHERE chat_id = $1
+             AND sent = FALSE
+             ORDER BY scheduled_at ASC`,
+            [ctx.chat.id]
+        );
+
+        if (!result.rowCount) {
+
+            return ctx.editMessageText(
+`✏️ *EDIT SCHEDULE*
+
+There are no scheduled messages to edit.`,
+                {
+                    parse_mode: "Markdown",
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                {
+                                    text: "⬅️ Back",
+                                    callback_data: "panel_schedule"
+                                }
+                            ]
+                        ]
+                    }
+                }
+            );
+
+        }
+
+        const keyboard = result.rows.map(row => [{
+            text: `🆔 ${row.id} • ${row.message_type} • ${new Date(row.scheduled_at).toLocaleString()}`,
+            callback_data: `edit_schedule_${row.id}`
+        }]);
+
+        keyboard.push([
+            {
+                text: "⬅️ Back",
+                callback_data: "panel_schedule"
+            }
+        ]);
+
+        await ctx.editMessageText(
+`✏️ *EDIT SCHEDULE*
+
+Select a scheduled message to edit:`,
+            {
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: keyboard
+                }
+            }
+        );
+
+    } catch (err) {
+
+        console.error(err);
+
+        ctx.reply("❌ Failed to load schedules.");
+
+    }
+
+});
+
+bot.action(/^edit_schedule_(\d+)$/, async (ctx) => {
+
+    if (!(await canModerate(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    const scheduleId = Number(ctx.match[1]);
+
+    pendingScheduleEdits.set(ctx.from.id, {
+        scheduleId
+    });
+
+    await ctx.editMessageText(
+`✏️ *EDIT SCHEDULE*
+
+Now send the new date and time.
+
+Examples:
+
+18:30
+
+or
+
+2026-09-15 18:30
+
+Type /cancel to cancel.`,
+        {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "⬅️ Back",
+                            callback_data: "panel_schedule"
+                        }
+                    ]
+                ]
+            }
+        }
+    );
 
 });
 
