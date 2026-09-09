@@ -532,42 +532,40 @@ or
 
             }
 
-            await pool.query(
-                `INSERT INTO scheduled_messages
-                (
-                    chat_id,
-                    admin_id,
-                    message_type,
-                    content,
-                    file_id,
-                    caption,
-                    scheduled_at
-                )
-                VALUES
-                ($1,$2,$3,$4,$5,$6,$7)`,
+state.scheduleData = {
+    messageType,
+    content,
+    fileId,
+    caption,
+    scheduledAt
+};
+
+state.step = "pin";
+
+pendingSchedules.set(ctx.from.id, state);
+
+return ctx.reply(
+`📌 *PIN AFTER SEND*
+
+Would you like me to pin this message automatically after it is sent?`,
+    {
+        parse_mode: "Markdown",
+        reply_markup: {
+            inline_keyboard: [
                 [
-                    state.chatId,
-                    ctx.from.id,
-                    messageType,
-                    content,
-                    fileId,
-                    caption,
-                    scheduledAt
+                    {
+                        text: "📌 Yes",
+                        callback_data: "pin_yes"
+                    },
+                    {
+                        text: "❌ No",
+                        callback_data: "pin_no"
+                    }
                 ]
-            );
-
-            pendingSchedules.delete(ctx.from.id);
-
-            return ctx.reply(
-`✅ *MESSAGE SCHEDULED*
-
-📅 ${scheduledAt.toLocaleString()}
-
-Your message will be sent automatically.`,
-                {
-                    parse_mode: "Markdown"
-                }
-            );
+            ]
+        }
+    }
+);
 
         } catch (err) {
 
@@ -814,6 +812,75 @@ The scheduled message has been deleted.`,
         console.error(err);
 
         ctx.reply("❌ Failed to cancel schedule.");
+
+    }
+
+});
+
+bot.action(/^pin_(yes|no)$/, async (ctx) => {
+
+    if (!(await canModerate(ctx)))
+        return ctx.answerCbQuery("⛔ Unauthorized.");
+
+    await ctx.answerCbQuery();
+
+    const state = pendingSchedules.get(ctx.from.id);
+
+    if (!state || state.step !== "pin")
+        return;
+
+    try {
+
+        const data = state.scheduleData;
+
+        const pinAfterSend = ctx.match[1] === "yes";
+
+        await pool.query(
+            `INSERT INTO scheduled_messages
+            (
+                chat_id,
+                admin_id,
+                message_type,
+                content,
+                file_id,
+                caption,
+                scheduled_at,
+                pin_after_send
+            )
+            VALUES
+            ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [
+                state.chatId,
+                ctx.from.id,
+                data.messageType,
+                data.content,
+                data.fileId,
+                data.caption,
+                data.scheduledAt,
+                pinAfterSend
+            ]
+        );
+
+        pendingSchedules.delete(ctx.from.id);
+
+        await ctx.editMessageText(
+`✅ *MESSAGE SCHEDULED*
+
+📅 ${data.scheduledAt.toLocaleString()}
+
+📌 Pin After Send: ${pinAfterSend ? "Enabled" : "Disabled"}`,
+            {
+                parse_mode: "Markdown"
+            }
+        );
+
+    } catch (err) {
+
+        console.error(err);
+
+        await ctx.reply(
+            "❌ Failed to schedule message."
+        );
 
     }
 

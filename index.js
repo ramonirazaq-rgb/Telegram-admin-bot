@@ -147,6 +147,8 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
     sent BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE scheduled_messages
+ADD COLUMN pin_after_send BOOLEAN DEFAULT FALSE;
 
             CREATE TABLE IF NOT EXISTS auto_responses (
                 id SERIAL PRIMARY KEY,
@@ -1168,6 +1170,7 @@ require("./commands/menu")(
     canModerate,
     canAccessPanel
 );
+require("./commands/movie")(bot);
 
 bot.on("message", async (ctx, next) => {
 
