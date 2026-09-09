@@ -55,7 +55,7 @@ const parts = ctx.message.text.trim().split(/\s+/);
         await ctx.reply("🔎 Searching movie...");
 
         const res = await axios.get(
-            "https://api.themoviedb.org/3/search/multi",
+            "https://api.themoviedb.org/3/search/movie",
             {
                 params: {
                     query,
