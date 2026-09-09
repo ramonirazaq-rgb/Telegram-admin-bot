@@ -148,8 +148,7 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
     created_at TIMESTAMP DEFAULT NOW()
 );
 ALTER TABLE scheduled_messages
-ADD COLUMN pin_after_send BOOLEAN DEFAULT FALSE;
-
+ADD COLUMN IF NOT EXISTS pin_after_send BOOLEAN DEFAULT false;
             CREATE TABLE IF NOT EXISTS auto_responses (
                 id SERIAL PRIMARY KEY,
                 chat_id BIGINT NOT NULL,
