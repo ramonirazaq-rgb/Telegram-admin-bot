@@ -131,9 +131,11 @@ bot.action(/^movie_(.+)$/, async (ctx) => {
 
     } catch (err) {
 
-        console.error(err);
+console.error(err.response?.data || err.message);
 
-        ctx.reply("❌ Failed to search movie.");
+ctx.reply(
+    `❌ ${err.response?.data?.status_message || err.message}`
+);
 
     }
 
