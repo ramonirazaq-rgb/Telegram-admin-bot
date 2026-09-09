@@ -98,6 +98,13 @@ Select the correct movie below:`,
 }
 );
 
+    } catch (err) {
+        console.error(err);
+        return ctx.reply("❌ Failed to search movie.");
+    }
+
+}); // <-- THIS closes bot.command("movie")
+
 bot.action(/^movie_(.+)$/, async (ctx) => {
 
     try {
@@ -122,18 +129,6 @@ bot.action(/^movie_(.+)$/, async (ctx) => {
         console.error(err);
 
         ctx.answerCbQuery("Failed to load movie.");
-
-    }
-
-});
-
-    } catch (err) {
-
-console.error(err.response?.data || err.message);
-
-ctx.reply(
-    `❌ ${err.response?.data?.status_message || err.message}`
-);
 
     }
 
