@@ -71,9 +71,7 @@ const parts = ctx.message.text.trim().split(/\s+/);
             return ctx.reply("❌ No results found.");
         }
 
-const results = res.data.results
-    .filter(r => r.media_type === "movie")
-    .slice(0, 5);
+const results = res.data.results.slice(0, 5);
 
 if (!results.length) {
     return ctx.reply("❌ No movie found.");
