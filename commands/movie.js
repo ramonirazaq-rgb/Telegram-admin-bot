@@ -1,11 +1,10 @@
-const { commandParts } = require("../utils/helpers");
 const axios = require("axios");
 
 module.exports = (bot) => {
 
 bot.command("movie", async (ctx) => {
 
-    const parts = commandParts(ctx.message.text);
+const parts = ctx.message.text.trim().split(/\s+/);
 
     if (parts.length < 2) {
         return ctx.reply(
