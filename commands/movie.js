@@ -52,6 +52,9 @@ ${movie.release_date || movie.first_air_date || "Unknown"}
 📝
 ${movie.overview || "No description available."}`;
 
+const trailerUrl =
+    await getTrailer(movie.id);
+
 if (poster) {
     return ctx.replyWithPhoto(
         poster,
@@ -80,9 +83,6 @@ trailerUrl
         }
     );
 }
-
-const trailerUrl =
-    await getTrailer(movie.id);
 
 return ctx.reply(
     caption,
