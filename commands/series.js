@@ -1,7 +1,7 @@
 const axios = require("axios");
 const { Markup } = require("telegraf");
 
-async function getTrailer(movieId) {
+async function getTrailer(seriesId) {
 
     try {
 
@@ -15,9 +15,9 @@ async function getTrailer(movieId) {
         );
 
         const trailer = res.data.results.find(
-            v =>
-                v.site === "YouTube" &&
-                v.type === "Trailer"
+            video =>
+                video.site === "YouTube" &&
+                video.type === "Trailer"
         );
 
         if (!trailer)
@@ -34,81 +34,72 @@ async function getTrailer(movieId) {
     }
 
 }
-
 async function showSeries(ctx, series) {
 
-    const poster = movie.poster_path
+    const poster = series.poster_path
         ? `https://image.tmdb.org/t/p/w500${series.poster_path}`
         : null;
 
+    const trailerUrl = await getTrailer(series.id);
+
     const caption =
-`🎬 *${series.title || series.name}*
+`📺 *${series.name}*
 
 ⭐ Rating: ${series.vote_average || "N/A"}
 
-📅 Release:
-${series.release_date || series.first_air_date || "Unknown"}
+📅 First Air Date:
+${series.first_air_date || "Unknown"}
+
+🎞 Seasons: ${series.number_of_seasons ?? "Unknown"}
+
+📺 Episodes: ${series.number_of_episodes ?? "Unknown"}
+
+🟢 Status:
+${series.status || "Unknown"}
 
 📝
 ${series.overview || "No description available."}`;
 
-const trailerUrl =
-    await getTrailer(movie.id);
+    const keyboard = Markup.inlineKeyboard([
+        [
+            Markup.button.callback(
+                "📥 Download",
+                `series_download_${series.id}`
+            )
+        ],
+        [
+            trailerUrl
+                ? Markup.button.url(
+                    "🎥 Official Trailer",
+                    trailerUrl
+                )
+                : Markup.button.callback(
+                    "🎥 No Trailer",
+                    "series_no_trailer"
+                )
+        ]
+    ]).reply_markup;
 
-if (poster) {
-    return ctx.replyWithPhoto(
-        poster,
+    if (poster) {
+
+        return ctx.replyWithPhoto(
+            poster,
+            {
+                caption,
+                parse_mode: "Markdown",
+                reply_markup: keyboard
+            }
+        );
+
+    }
+
+    return ctx.reply(
+        caption,
         {
-            caption,
             parse_mode: "Markdown",
-            reply_markup: Markup.inlineKeyboard([
-                [
-                    Markup.button.callback(
-                        "📥 Download",
-                        `download_${series.id}`
-                    )
-                ],
-                [
-trailerUrl
-    ? Markup.button.url(
-        "🎥 Official Trailer",
-        trailerUrl
-    )
-    : Markup.button.callback(
-        "🎥 Trailer Not Available",
-        "no_trailer"
-    )
-                ]
-            ]).reply_markup
+            reply_markup: keyboard
         }
     );
-}
-
-return ctx.reply(
-    caption,
-    {
-        parse_mode: "Markdown",
-        reply_markup: Markup.inlineKeyboard([
-            [
-                Markup.button.callback(
-                    "📥 Download",
-                    `download_${series.id}`
-                )
-            ],
-            [
-trailerUrl
-    ? Markup.button.url(
-        "🎥 Official Trailer",
-        trailerUrl
-    )
-    : Markup.button.callback(
-        "🎥 Trailer Not Available",
-        "no_trailer"
-    )
-            ]
-        ]).reply_markup
-    }
-);
 
 }
 
@@ -116,7 +107,7 @@ module.exports = (bot) => {
 
 bot.command("series", async (ctx) => {
 
-const parts = ctx.message.text.trim().split(/\s+/);
+    const parts = ctx.message.text.trim().split(/\s+/);
 
     if (parts.length < 2) {
         return ctx.reply(
@@ -128,7 +119,7 @@ const parts = ctx.message.text.trim().split(/\s+/);
 
     try {
 
-        await ctx.reply("🔎 Searching series...");
+        await ctx.reply("🔎 Searching TV series...");
 
         const res = await axios.get(
             "https://api.themoviedb.org/3/search/tv",
@@ -143,48 +134,68 @@ const parts = ctx.message.text.trim().split(/\s+/);
             }
         );
 
-        if (!res.data.results.length) {
-            return ctx.reply("❌ No results found.");
+        const results = res.data.results.slice(0, 5);
+
+        if (!results.length) {
+            return ctx.reply(
+                "❌ No TV series found."
+            );
         }
 
-const results = res.data.results.slice(0, 5);
+        // One result
+        if (results.length === 1) {
 
-if (!results.length) {
-    return ctx.reply("❌ No series found.");
-}
+            const details = await axios.get(
+                `https://api.themoviedb.org/3/tv/${results[0].id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.TMDB_ACCESS_TOKEN}`
+                    }
+                }
+            );
 
-if (results.length === 1) {
-    return showSeries(ctx, results[0]);
-}
+            return showSeries(
+                ctx,
+                details.data
+            );
 
-return ctx.reply(
-`🎬 *Multiple series found*
+        }
 
-Select the correct series below:`,
-{
-    parse_mode: "Markdown",
-    reply_markup: Markup.inlineKeyboard(
-        results.map(series => [
-            Markup.button.callback(
-                `${series.title || series.name} (${(series.release_date || series.first_air_date || "").slice(0,4) || "----"})`,
-                `series_${series.id}`
-            )
-        ])
-    ).reply_markup
-}
-);
+        // Multiple results
+        return ctx.reply(
+`📺 *Multiple TV series found*
+
+Select the correct one below:`,
+            {
+                parse_mode: "Markdown",
+                reply_markup: Markup.inlineKeyboard(
+                    results.map(series => [
+                        Markup.button.callback(
+                            `${series.name} (${(series.first_air_date || "").slice(0,4) || "----"})`,
+                            `series_${series.id}`
+                        )
+                    ])
+                ).reply_markup
+            }
+        );
 
     } catch (err) {
+
         console.error(err);
-        return ctx.reply("❌ Failed to search series.");
+
+        return ctx.reply(
+            "❌ Failed to search TV series."
+        );
+
     }
 
-}); // <-- THIS closes bot.command("movie")
-
+});
 bot.action(/^series_(.+)$/, async (ctx) => {
 
     try {
 
+        await ctx.answerCbQuery();
+
         const id = ctx.match[1];
 
         const res = await axios.get(
@@ -196,96 +207,27 @@ bot.action(/^series_(.+)$/, async (ctx) => {
             }
         );
 
-        await ctx.answerCbQuery();
-
-        return showSeries(ctx, res.data);
+        return showSeries(
+            ctx,
+            res.data
+        );
 
     } catch (err) {
 
         console.error(err);
 
-        ctx.answerCbQuery("Failed to load movie.");
+        await ctx.reply(
+            `❌ ${err.response?.data?.status_message || err.message}`
+        );
 
     }
 
 });
-
-bot.action("no_trailer", async (ctx) => {
+bot.action("series_no_trailer", async (ctx) => {
 
     await ctx.answerCbQuery(
         "No official trailer found."
     );
-
-});
-
-bot.action(/^download_(.+)$/, async (ctx) => {
-
-    try {
-
-        await ctx.answerCbQuery();
-
-        const id = ctx.match[1];
-
-        const res = await axios.get(
-            `https://api.themoviedb.org/3/tv/${id}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${process.env.TMDB_ACCESS_TOKEN}`
-                }
-            }
-        );
-
-        const series = res.data;
-        const title = series.title || series.name;
-
-        return ctx.editMessageCaption(
-`📥 *DOWNLOAD OPTIONS*
-
-🎬 ${title}
-
-Choose a download source below.`,
-            {
-                parse_mode: "Markdown",
-                reply_markup: Markup.inlineKeyboard([
-                    [
-                        Markup.button.url(
-                            "📥 My9jaRocks",
-                            `https://www.my9jarocks.bz/?s=${encodeURIComponent(title)}`
-                        )
-                    ],
-                    [
-                        Markup.button.url(
-                            "📥 PSA",
-                            `https://psa.wf/?s=${encodeURIComponent(title)}`
-                        ),
-                        Markup.button.url(
-                            "📥 Pahe",
-                            `https://pahe.ink/?s=${encodeURIComponent(title)}`
-                        )
-                    ],
-                    [
-                        Markup.button.url(
-                            "⭐ IMDb",
-                            `https://www.imdb.com/find/?q=${encodeURIComponent(title)}`
-                        )
-                    ],
-                    [
-                        Markup.button.callback(
-                            "⬅ Back",
-                            `series_${id}`
-                        )
-                    ]
-                ]).reply_markup
-            }
-        );
-
-    } catch (err) {
-
-        console.error(err);
-
-        await ctx.answerCbQuery("Failed.");
-
-    }
 
 });
 
