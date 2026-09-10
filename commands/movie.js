@@ -167,4 +167,75 @@ bot.action(/^movie_(.+)$/, async (ctx) => {
 
 });
 
+bot.action(/^download_(.+)$/, async (ctx) => {
+
+    try {
+
+        await ctx.answerCbQuery();
+
+        const id = ctx.match[1];
+
+        const res = await axios.get(
+            `https://api.themoviedb.org/3/movie/${id}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.TMDB_ACCESS_TOKEN}`
+                }
+            }
+        );
+
+        const movie = res.data;
+        const title = movie.title || movie.name;
+
+        return ctx.editMessageCaption(
+`📥 *DOWNLOAD OPTIONS*
+
+🎬 ${title}
+
+Choose a download source below.`,
+            {
+                parse_mode: "Markdown",
+                reply_markup: Markup.inlineKeyboard([
+                    [
+                        Markup.button.url(
+                            "📥 My9jaRocks",
+                            `https://www.my9jarocks.bz/?s=${encodeURIComponent(title)}`
+                        )
+                    ],
+                    [
+                        Markup.button.url(
+                            "📥 PSA",
+                            `https://psa.wf/?s=${encodeURIComponent(title)}`
+                        ),
+                        Markup.button.url(
+                            "📥 Pahe",
+                            `https://pahe.ink/?s=${encodeURIComponent(title)}`
+                        )
+                    ],
+                    [
+                        Markup.button.url(
+                            "⭐ IMDb",
+                            `https://www.imdb.com/find/?q=${encodeURIComponent(title)}`
+                        )
+                    ],
+                    [
+                        Markup.button.callback(
+                            "⬅ Back",
+                            `movie_${id}`
+                        )
+                    ]
+                ]).reply_markup
+            }
+        );
+
+    } catch (err) {
+
+        console.error(err);
+
+        await ctx.answerCbQuery("Failed.");
+
+    }
+
+});
+
 };
