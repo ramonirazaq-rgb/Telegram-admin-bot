@@ -1,6 +1,40 @@
 const axios = require("axios");
 const { Markup } = require("telegraf");
 
+async function getTrailer(movieId) {
+
+    try {
+
+        const res = await axios.get(
+            `https://api.themoviedb.org/3/movie/${movieId}/videos`,
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.TMDB_ACCESS_TOKEN}`
+                }
+            }
+        );
+
+        const trailer = res.data.results.find(
+            v =>
+                v.site === "YouTube" &&
+                v.type === "Trailer"
+        );
+
+        if (!trailer)
+            return null;
+
+        return `https://www.youtube.com/watch?v=${trailer.key}`;
+
+    } catch (err) {
+
+        console.error(err);
+
+        return null;
+
+    }
+
+}
+
 async function showMovie(ctx, movie) {
 
     const poster = movie.poster_path
@@ -32,17 +66,23 @@ if (poster) {
                     )
                 ],
                 [
-                    Markup.button.url(
-                        "🎥 Trailer",
-                        `https://www.youtube.com/results?search_query=${encodeURIComponent(
-                            movie.title || movie.name
-                        )}+official+trailer`
-                    )
+trailerUrl
+    ? Markup.button.url(
+        "🎥 Official Trailer",
+        trailerUrl
+    )
+    : Markup.button.callback(
+        "🎥 Trailer Not Available",
+        "no_trailer"
+    )
                 ]
             ]).reply_markup
         }
     );
 }
+
+const trailerUrl =
+    await getTrailer(movie.id);
 
 return ctx.reply(
     caption,
@@ -56,12 +96,15 @@ return ctx.reply(
                 )
             ],
             [
-                Markup.button.url(
-                    "🎥 Trailer",
-                    `https://www.youtube.com/results?search_query=${encodeURIComponent(
-                        movie.title || movie.name
-                    )}+official+trailer`
-                )
+trailerUrl
+    ? Markup.button.url(
+        "🎥 Official Trailer",
+        trailerUrl
+    )
+    : Markup.button.callback(
+        "🎥 Trailer Not Available",
+        "no_trailer"
+    )
             ]
         ]).reply_markup
     }
@@ -164,6 +207,14 @@ bot.action(/^movie_(.+)$/, async (ctx) => {
         ctx.answerCbQuery("Failed to load movie.");
 
     }
+
+});
+
+bot.action("no_trailer", async (ctx) => {
+
+    await ctx.answerCbQuery(
+        "No official trailer found."
+    );
 
 });
 
