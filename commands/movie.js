@@ -18,22 +18,55 @@ ${movie.release_date || movie.first_air_date || "Unknown"}
 📝
 ${movie.overview || "No description available."}`;
 
-    if (poster) {
-        return ctx.replyWithPhoto(
-            poster,
-            {
-                caption,
-                parse_mode: "Markdown"
-            }
-        );
-    }
-
-    return ctx.reply(
-        caption,
+if (poster) {
+    return ctx.replyWithPhoto(
+        poster,
         {
-            parse_mode: "Markdown"
+            caption,
+            parse_mode: "Markdown",
+            reply_markup: Markup.inlineKeyboard([
+                [
+                    Markup.button.callback(
+                        "📥 Download",
+                        `download_${movie.id}`
+                    )
+                ],
+                [
+                    Markup.button.url(
+                        "🎥 Trailer",
+                        `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                            movie.title || movie.name
+                        )}+official+trailer`
+                    )
+                ]
+            ]).reply_markup
         }
     );
+}
+
+return ctx.reply(
+    caption,
+    {
+        parse_mode: "Markdown",
+        reply_markup: Markup.inlineKeyboard([
+            [
+                Markup.button.callback(
+                    "📥 Download",
+                    `download_${movie.id}`
+                )
+            ],
+            [
+                Markup.button.url(
+                    "🎥 Trailer",
+                    `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                        movie.title || movie.name
+                    )}+official+trailer`
+                )
+            ]
+        ]).reply_markup
+    }
+);
+
 }
 
 module.exports = (bot) => {
