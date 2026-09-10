@@ -1170,6 +1170,7 @@ require("./commands/menu")(
     canAccessPanel
 );
 require("./commands/movie")(bot);
+require("./commands/series")(bot);
 
 bot.on("message", async (ctx, next) => {
 
