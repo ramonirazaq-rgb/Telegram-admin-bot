@@ -14,6 +14,8 @@ async function getTrailer(seriesId) {
             }
         );
 
+       console.log(res.data.results);
+
         const trailer = res.data.results.find(
             video =>
                 video.site === "YouTube" &&
